@@ -1,0 +1,1365 @@
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="proc-container animate-fade-in">
+
+  <!-- CABEÇALHO PRINCIPAL -->
+  <div class="proc-page-header">
+    <div class="proc-header-text">
+      <div class="proc-title-wrapper">
+        <h1 class="proc-title">Visualizador de Processos</h1>
+        <span class="proc-header-tag">Painel Analítico</span>
+      </div>
+      <p class="proc-subtitle">Consulte e analise os processos em andamento por etapa e unidade federativa.</p>
+    </div>
+    
+    <div id="proc-badge" class="proc-badge proc-glow-effect">
+      <span class="proc-status-dot pulse"></span>
+      <span id="proc-badge-count">0</span> processos localizados
+    </div>
+  </div>
+
+  <!-- SELETOR DE ETAPAS -->
+  <div class="proc-card proc-stage-bar">
+    <button class="proc-stage-btn active" data-stage="ESTADUAL">
+      <span class="proc-stage-icon">🏛️</span>
+      <span>Etapa Estadual</span>
+    </button>
+    <button class="proc-stage-btn" data-stage="FEDERAL">
+      <span class="proc-stage-icon">🇧🇷</span>
+      <span>Etapa Federal</span>
+    </button>
+    <button class="proc-stage-btn" data-stage="FINANCEIRA">
+      <span class="proc-stage-icon">💰</span>
+      <span>Etapa Financeira</span>
+    </button>
+  </div>
+
+  <!-- PAINEL DE FILTROS -->
+  <div class="proc-card proc-filters-panel">
+    <div class="proc-filters-grid">
+      
+      <div class="proc-form-group proc-col-uf">
+        <label class="proc-label-small" for="sel-uf">UF (ESTADO)</label>
+        <div class="proc-input-wrapper">
+          <select id="sel-uf" class="proc-input proc-select">
+            <option value="">— Selecione —</option>
+            <option value="AC">AC</option><option value="AL">AL</option><option value="AM">AM</option>
+            <option value="AP">AP</option><option value="BA">BA</option><option value="CE">CE</option>
+            <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
+            <option value="MA">MA</option><option value="MG">MG</option><option value="MS">MS</option>
+            <option value="MT">MT</option><option value="PA">PA</option><option value="PB">PB</option>
+            <option value="PE">PE</option><option value="PI">PI</option><option value="PR">PR</option>
+            <option value="RJ">RJ</option><option value="RN">RN</option><option value="RO">RO</option>
+            <option value="RR">RR</option><option value="RS">RS</option><option value="SC">SC</option>
+            <option value="SE">SE</option><option value="SP">SP</option><option value="TO">TO</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="proc-form-group proc-checkbox-group">
+        <label class="proc-checkbox-label">
+          <input type="checkbox" id="chk-todos-ufs">
+          <span class="proc-custom-check"></span>
+          <span>Buscar todos os estados</span>
+        </label>
+      </div>
+
+      <div class="proc-form-group proc-checkbox-group">
+        <label class="proc-checkbox-label" title="Se marcado, ignora a memória e busca na base de dados novamente.">
+          <input type="checkbox" id="chk-force-fetch">
+          <span class="proc-custom-check"></span>
+          <span>Forçar atualização da base</span>
+        </label>
+      </div>
+
+      <div class="proc-form-group proc-btn-group">
+        <label class="proc-label-small">&nbsp;</label>
+        <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+          <button id="btn-fetch" class="proc-btn proc-btn-primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <span>Buscar Processos</span>
+          </button>
+
+          <button id="btn-chart" class="proc-btn proc-btn-secondary" disabled>
+            <span>📊 Mostrar Gráfico</span>
+          </button>
+
+          <button id="btn-open-selected" class="proc-btn proc-btn-success" style="display: none;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            <span>Abrir Selecionados (<span id="count-selected">0</span>)</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ESTADO VAZIO -->
+  <div id="proc-empty-state" class="proc-empty-state">
+    <div class="proc-empty-icon-box">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+    </div>
+    <div class="proc-empty-title">Aguardando consulta</div>
+    <div class="proc-empty-desc">Selecione uma UF ou marque <strong>"Buscar todos os estados"</strong> e clique em <strong>Buscar Processos</strong>.</div>
+  </div>
+
+  <!-- LOADER COM ANIMAÇÃO MODERNA -->
+  <div id="proc-loader" class="proc-loader-wrapper" style="display:none;">
+    <div class="proc-loader-ring">
+      <div></div><div></div><div></div><div></div>
+    </div>
+    <span class="proc-loader-text">Conectando ao banco de dados e consultando registros...</span>
+  </div>
+
+  <!-- ÁREA DO GRÁFICO -->
+  <div id="proc-chart-wrapper" class="proc-card proc-chart-card animate-fade-in" style="display:none;">
+    <div class="proc-chart-header">
+      <div class="proc-chart-title-box">
+        <span class="proc-chart-icon">📈</span>
+        <div>
+          <h3 class="proc-chart-title">Resumo Analítico por Atividade</h3>
+          <p class="proc-chart-sub">Distribuição visual dos processos por estado e atividade atual</p>
+        </div>
+      </div>
+      <button id="btn-close-chart" type="button" class="proc-btn-close">
+        ✕
+      </button>
+    </div>
+    <div class="proc-chart-canvas-container">
+      <canvas id="proc-chart-canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- TABELA DE RESULTADOS -->
+  <div id="proc-table-wrapper" class="proc-card proc-table-card" style="display:none;">
+    <div class="proc-table-scroll">
+      <table class="proc-table">
+        <thead>
+          <tr>
+            <th style="min-width:48px; text-align:center; vertical-align:middle;">
+              <input type="checkbox" id="chk-select-all" class="proc-chk-custom" title="Selecionar Todos">
+            </th>
+            <th style="min-width:150px;">
+              <div class="proc-th-title">PROCESSO <span class="proc-arrow">▼</span></div>
+              <input type="text" class="proc-col-filter" data-col="processo" placeholder="Filtrar Nº...">
+            </th>
+            <th style="min-width:230px;">
+              <div class="proc-th-title">TITULARIDADE <span class="proc-arrow">▼</span></div>
+              <input type="text" class="proc-col-filter" data-col="nome" placeholder="Filtrar Nome...">
+            </th>
+            <th style="min-width:140px;">
+              <div class="proc-th-title">CPF <span class="proc-arrow">▼</span></div>
+              <input type="text" class="proc-col-filter" data-col="cpf" placeholder="Filtrar CPF...">
+            </th>
+            <th style="min-width:250px;">
+              <div class="proc-th-title">LOCALIZAÇÃO <span class="proc-arrow">▼</span></div>
+              <input type="text" class="proc-col-filter" data-col="localizacao" placeholder="Filtrar Imóvel/UF...">
+            </th>
+            <th style="min-width:220px;">
+              <div class="proc-th-title">ATIVIDADE ATUAL <span class="proc-arrow">▼</span></div>
+              <input type="text" class="proc-col-filter" data-col="atividade" placeholder="Filtrar Atividade...">
+            </th>
+            <th style="min-width:130px;">
+              <div class="proc-th-title">ABERTURA <span class="proc-arrow">▼</span></div>
+              <input type="text" class="proc-col-filter" data-col="abertura" placeholder="dd/mm/aaaa">
+            </th>
+            <th style="min-width:150px;">
+              <div class="proc-th-title">CNPJ ATER <span class="proc-arrow">▼</span></div>
+              <input type="text" class="proc-col-filter" data-col="cnpj" placeholder="Filtrar CNPJ...">
+            </th>
+          </tr>
+        </thead>
+        <tbody id="proc-tbody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- TOAST SYSTEM -->
+<div id="proc-toast" class="proc-toast" aria-live="polite"></div>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
+
+  :root {
+    --proc-font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --proc-font-mono: 'JetBrains Mono', monospace;
+    
+    --proc-primary: #3B82F6;
+    --proc-primary-gradient: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+    --proc-primary-glow: rgba(37, 99, 235, 0.25);
+    
+    --proc-success: #10B981;
+    --proc-success-gradient: linear-gradient(135deg, #10B981 0%, #059669 100%);
+    --proc-success-glow: rgba(16, 185, 129, 0.25);
+    
+    --proc-error: #EF4444;
+    --proc-warning: #F59E0B;
+    
+    --proc-bg: #0F172A;
+    --proc-surface: #FFFFFF;
+    --proc-surface-hover: #F8FAFC;
+    
+    --proc-border: #E2E8F0;
+    --proc-border-focus: #3B82F6;
+    
+    --proc-text-main: #0F172A;
+    --proc-text-muted: #64748B;
+    --proc-text-light: #94A3B8;
+    
+    --proc-radius-lg: 16px;
+    --proc-radius-md: 10px;
+    --proc-radius-sm: 6px;
+    
+    --proc-shadow-subtle: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    --proc-shadow-card: 0 10px 25px -5px rgba(15, 23, 42, 0.06), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+    --proc-shadow-float: 0 20px 30px -10px rgba(15, 23, 42, 0.15);
+    
+    --proc-transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .proc-container {
+    font-family: var(--proc-font-sans);
+    color: var(--proc-text-main);
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.5rem;
+  }
+
+  .proc-container * { box-sizing: border-box; }
+
+  .animate-fade-in { animation: procFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+  @keyframes procFadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* --- CABEÇALHO --- */
+  .proc-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+    background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+    padding: 1.5rem 1.75rem;
+    border-radius: var(--proc-radius-lg);
+    color: #FFFFFF;
+    box-shadow: var(--proc-shadow-card);
+  }
+
+  .proc-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .proc-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #FFFFFF;
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+
+  .proc-header-tag {
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    color: #60A5FA;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .proc-subtitle {
+    color: var(--proc-text-light);
+    font-size: 0.875rem;
+    margin: 0;
+  }
+
+  .proc-badge {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #FFFFFF;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.6rem 1.2rem;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    transition: var(--proc-transition);
+  }
+
+  .proc-badge:hover {
+    background: rgba(255, 255, 255, 0.18);
+    transform: translateY(-2px);
+  }
+
+  .proc-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #38BDF8;
+  }
+
+  .proc-status-dot.pulse {
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7);
+    animation: procPulse 1.8s infinite;
+  }
+
+  @keyframes procPulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(56, 189, 248, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+  }
+
+  /* --- CARD BASE --- */
+  .proc-card {
+    background: var(--proc-surface);
+    border-radius: var(--proc-radius-lg);
+    border: 1px solid var(--proc-border);
+    box-shadow: var(--proc-shadow-card);
+    margin-bottom: 1.25rem;
+    overflow: hidden;
+  }
+
+  /* --- SELETOR DE ETAPAS (PILL SWITCHER) --- */
+  .proc-stage-bar {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
+  }
+
+  .proc-stage-btn {
+    flex: 1;
+    padding: 0.85rem 1rem;
+    border: none;
+    background: transparent;
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: var(--proc-text-muted);
+    border-radius: var(--proc-radius-md);
+    cursor: pointer;
+    transition: var(--proc-transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-family: inherit;
+  }
+
+  .proc-stage-btn:hover {
+    background: rgba(255, 255, 255, 0.6);
+    color: var(--proc-text-main);
+  }
+
+  .proc-stage-btn.active {
+    background: #FFFFFF;
+    color: #2563EB;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  /* --- PAINEL DE FILTROS --- */
+  .proc-filters-panel { padding: 1.5rem; }
+  .proc-filters-grid { display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: flex-end; }
+
+  .proc-form-group { display: flex; flex-direction: column; }
+  .proc-col-uf { min-width: 160px; }
+
+  .proc-label-small {
+    font-size: 0.725rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--proc-text-muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .proc-input {
+    height: 44px;
+    font-size: 0.875rem;
+    color: var(--proc-text-main);
+    border: 1.5px solid var(--proc-border);
+    border-radius: var(--proc-radius-md);
+    padding: 0 1rem;
+    background: #FFFFFF;
+    transition: var(--proc-transition);
+    width: 100%;
+    font-family: inherit;
+    font-weight: 500;
+  }
+
+  .proc-input:hover { border-color: #CBD5E1; }
+  .proc-input:focus {
+    outline: none;
+    border-color: var(--proc-primary);
+    box-shadow: 0 0 0 4px var(--proc-primary-glow);
+  }
+
+  /* CHECKBOX ESTILIZADO */
+  .proc-checkbox-group { justify-content: center; padding-bottom: 0.4rem; }
+  .proc-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--proc-text-main);
+    cursor: pointer;
+    user-select: none;
+    transition: var(--proc-transition);
+  }
+
+  .proc-checkbox-label:hover { color: var(--proc-primary); }
+
+  .proc-checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #2563EB;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+
+  /* BOTÕES DE AÇÃO */
+  .proc-btn {
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 0 1.4rem;
+    border-radius: var(--proc-radius-md);
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: var(--proc-transition);
+    white-space: nowrap;
+    font-family: inherit;
+  }
+
+  .proc-btn-primary {
+    background: var(--proc-primary-gradient);
+    color: #FFFFFF;
+    box-shadow: 0 4px 14px var(--proc-primary-glow);
+  }
+
+  .proc-btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px var(--proc-primary-glow);
+  }
+
+  .proc-btn-secondary {
+    background: #FFFFFF;
+    color: var(--proc-text-main);
+    border: 1.5px solid var(--proc-border);
+    box-shadow: var(--proc-shadow-subtle);
+  }
+
+  .proc-btn-secondary:hover:not(:disabled) {
+    background: var(--proc-surface-hover);
+    border-color: #CBD5E1;
+    transform: translateY(-2px);
+  }
+
+  .proc-btn-success {
+    background: var(--proc-success-gradient) !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 4px 14px var(--proc-success-glow);
+  }
+
+  .proc-btn-success:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px var(--proc-success-glow);
+  }
+
+  .proc-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+  /* ESTADO VAZIO (EMPTY STATE) */
+  .proc-empty-state {
+    text-align: center;
+    padding: 4.5rem 2rem;
+    background: #FFFFFF;
+    border-radius: var(--proc-radius-lg);
+    border: 2px dashed #E2E8F0;
+    color: var(--proc-text-muted);
+  }
+
+  .proc-empty-icon-box {
+    width: 72px;
+    height: 72px;
+    background: #F1F5F9;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #94A3B8;
+    margin-bottom: 1.2rem;
+  }
+
+  .proc-empty-title { font-size: 1.2rem; font-weight: 700; color: var(--proc-text-main); margin-bottom: 0.4rem; }
+  .proc-empty-desc { font-size: 0.9rem; max-width: 420px; margin: 0 auto; }
+
+  /* LOADER MODERNO */
+  .proc-loader-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4.5rem 2rem;
+    gap: 1.5rem;
+  }
+
+  .proc-loader-ring {
+    display: inline-block;
+    position: relative;
+    width: 48px;
+    height: 48px;
+  }
+  .proc-loader-ring div {
+    box-sizing: border-box;
+    display: block;
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    margin: 4px;
+    border: 4px solid var(--proc-primary);
+    border-radius: 50%;
+    animation: procLoaderRing 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    border-color: var(--proc-primary) transparent transparent transparent;
+  }
+  .proc-loader-ring div:nth-child(1) { animation-delay: -0.45s; }
+  .proc-loader-ring div:nth-child(2) { animation-delay: -0.3s; }
+  .proc-loader-ring div:nth-child(3) { animation-delay: -0.15s; }
+
+  @keyframes procLoaderRing {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .proc-loader-text { font-size: 0.925rem; color: var(--proc-text-muted); font-weight: 600; }
+
+  /* CARD GRÁFICO */
+  .proc-chart-card { padding: 1.75rem; }
+  .proc-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--proc-border);
+  }
+
+  .proc-chart-title-box { display: flex; align-items: center; gap: 0.75rem; }
+  .proc-chart-icon { font-size: 1.4rem; }
+  .proc-chart-title { font-size: 1.15rem; font-weight: 800; margin: 0; color: var(--proc-text-main); }
+  .proc-chart-sub { font-size: 0.8rem; color: var(--proc-text-muted); margin: 2px 0 0 0; }
+
+  .proc-btn-close {
+    background: #F1F5F9;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-weight: 700;
+    color: var(--proc-text-muted);
+    cursor: pointer;
+    transition: var(--proc-transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .proc-btn-close:hover { background: #E2E8F0; color: var(--proc-text-main); }
+  .proc-chart-canvas-container { position: relative; height: 360px; width: 100%; }
+
+  /* TABELA DESIGN PREMIUM */
+  .proc-table-card { border: 1px solid var(--proc-border); }
+  .proc-table-scroll { overflow-x: auto; width: 100%; }
+  
+  .proc-table { width: 100%; border-collapse: separate; border-spacing: 0; background: #FFFFFF; }
+  .proc-table thead { background: #F8FAFC; position: sticky; top: 0; z-index: 10; }
+  
+  .proc-table th {
+    padding: 1rem 0.85rem;
+    text-align: center;
+    font-weight: 700;
+    color: var(--proc-text-muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    border-bottom: 2px solid var(--proc-border);
+    vertical-align: top;
+  }
+
+  .proc-th-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    color: var(--proc-text-main);
+    font-weight: 800;
+  }
+
+  .proc-arrow { font-size: 0.65rem; color: #94A3B8; }
+
+  .proc-col-filter {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--proc-border);
+    border-radius: var(--proc-radius-sm);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--proc-text-main);
+    background: #FFFFFF;
+    transition: var(--proc-transition);
+  }
+
+  .proc-col-filter:focus {
+    outline: none;
+    border-color: var(--proc-primary);
+    box-shadow: 0 0 0 2px var(--proc-primary-glow);
+  }
+
+  .proc-table td {
+    padding: 0.95rem 1rem;
+    border-bottom: 1px solid #F1F5F9;
+    text-align: center;
+    vertical-align: middle;
+    font-size: 0.85rem;
+    color: var(--proc-text-main);
+    transition: var(--proc-transition);
+  }
+
+  .proc-table tbody tr { transition: var(--proc-transition); }
+  .proc-table tbody tr:hover td { background: #F8FAFC; }
+
+  /* COMPONENTES INTERNOS DA TABELA */
+  .proc-link {
+    color: #2563EB;
+    font-weight: 800;
+    text-decoration: none;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--proc-radius-sm);
+    background: #EFF6FF;
+    transition: var(--proc-transition);
+    display: inline-block;
+  }
+
+  .proc-link:hover {
+    background: #2563EB;
+    color: #FFFFFF;
+    transform: translateY(-1px);
+  }
+
+  .proc-titularidad, .proc-localizacao { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
+  .proc-titular-nome, .proc-loc-imovel { font-weight: 700; color: var(--proc-text-main); }
+  .proc-titular-fam, .proc-loc-mun { font-size: 0.775rem; color: var(--proc-text-muted); }
+
+  .proc-badge-tag {
+    background: #F1F5F9;
+    color: #334155;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.3rem 0.65rem;
+    border-radius: var(--proc-radius-sm);
+    border: 1px solid #E2E8F0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .proc-badge-tag::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #3B82F6;
+  }
+
+  .proc-cpf {
+    font-family: var(--proc-font-mono);
+    font-size: 0.8rem;
+    background: #F8FAFC;
+    color: #475569;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #E2E8F0;
+    letter-spacing: -0.02em;
+  }
+
+  /* TOAST NOTIFICAÇÕES */
+  .proc-toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 9999;
+    min-width: 300px;
+    padding: 1rem 1.4rem;
+    border-radius: var(--proc-radius-md);
+    font-size: 0.875rem;
+    font-weight: 600;
+    box-shadow: var(--proc-shadow-float);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: var(--proc-transition);
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .proc-toast.proc-toast-visible { transform: translateY(0); opacity: 1; }
+  .proc-toast.proc-toast-success { background: #10B981; color: #FFFFFF; }
+  .proc-toast.proc-toast-error { background: #EF4444; color: #FFFFFF; }
+  .proc-toast.proc-toast-info { background: #0F172A; color: #FFFFFF; border: 1px solid rgba(255,255,255,0.2); }
+
+  /* RESPONSIVIDADE */
+  @media (max-width: 768px) {
+    .proc-stage-bar { flex-direction: column; }
+    .proc-filters-grid { flex-direction: column; align-items: stretch; }
+  }
+</style>
+
+<script>
+  (function() {
+    'use strict';
+
+    /* ── Configuração de Conexão com Supabase ── */
+    const SUPABASE_URL = 'https://bvdphvczpvzhjdaylybm.supabase.co';
+    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2ZHBodmN6cHZ6aGpkYXlseWJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MTA5NDYsImV4cCI6MjA4NzA4Njk0Nn0.pBbSwWxyY_DGH66q9xeKAd6W2ySdltz8fQHdP9TFgwo';
+
+    /* ── Configuração das Etapas e Atividades ── */
+    const ETAPAS_CONFIG = {
+      ESTADUAL: [
+        'ASSUMIR_ANALISE_DE_DOCUMENTOS', 
+        'ANALISAR_SOLICITACAO_ESTADO', 
+        'AJUSTES_DA_SOLICITACAO_ESTADO'
+      ],
+      FEDERAL: [
+        'ASSUMIR_SOLICITACAO', 
+        'ANALISAR_SOLICITACAO_FEDERAL', 
+        'AJUSTES_DA_SOLICITACAO_FEDERAL'
+      ],
+      FINANCEIRA: [
+        'ASSUMIR_ANALISE_FINANCEIRA', 
+        'ANALISE_FINANCEIRA', 
+        'AJUSTES_DA_SOLICITACAO_BANCO', 
+        'DEFERIMENTO_DA_CONTRATACAO', 
+        'RECEBER_CONTRATO_DE_FINANCIAMENTO', 
+        'ANALISE_CONTRATACAO'
+      ]
+    };
+
+    /* ── Estado Local ── */
+    let currentStage = 'ESTADUAL';
+    let rawData = [];
+    let chartInstance = null; 
+    let memoryCache = {};
+
+    /* ── Elementos do DOM ── */
+    const selUf = document.getElementById('sel-uf');
+    const chkTodosUfs = document.getElementById('chk-todos-ufs');
+    const chkForceFetch = document.getElementById('chk-force-fetch');
+    const btnFetch = document.getElementById('btn-fetch');
+    const btnChart = document.getElementById('btn-chart');
+    const tbody = document.getElementById('proc-tbody');
+    const loader = document.getElementById('proc-loader');
+    const emptyState = document.getElementById('proc-empty-state');
+    const tableWrapper = document.getElementById('proc-table-wrapper');
+    const chartWrapper = document.getElementById('proc-chart-wrapper');
+    const countBadge = document.getElementById('proc-badge-count');
+    const stageButtons = document.querySelectorAll('.proc-stage-btn');
+    const colFilters = document.querySelectorAll('.proc-col-filter');
+    
+    const chkSelectAll = document.getElementById('chk-select-all');
+    const btnOpenSelected = document.getElementById('btn-open-selected');
+    const countSelectedSpan = document.getElementById('count-selected');
+
+    /* ================================================================
+       0. FUNÇÃO AUXILIAR DE EXTRAÇÃO DE TEXTO VÁLIDO
+       ================================================================ */
+    function extrairTextoValido(...valores) {
+      for (const v of valores) {
+        if (v !== null && v !== undefined) {
+          const str = String(v).replace(/[\r\n\t]+/g, ' ').trim();
+          const strLower = str.toLowerCase();
+          if (str !== '' && strLower !== 'null' && strLower !== 'undefined' && str !== '—' && str !== '-' && strLower !== 'n/d') {
+            return str;
+          }
+        }
+      }
+      return '';
+    }
+
+    /* ================================================================
+       1. REQUISITOR SUPABASE NATIVO (REST API)
+       ================================================================ */
+    async function supabaseRequest(path, opts = {}) {
+      const token = localStorage.getItem('supabase.auth.token') || ANON_KEY;
+      const url = `${SUPABASE_URL}/rest/v1/${path}`;
+
+      const headers = {
+        'apikey': ANON_KEY,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+        ...(opts.headers || {}),
+      };
+
+      const response = await fetch(url, { ...opts, headers });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(err.message || `HTTP ${response.status}`);
+      }
+
+      const ct = response.headers.get('content-type') || '';
+      if (ct.includes('application/json')) return response.json();
+      return [];
+    }
+
+    async function fetchAllSupabase(path, opts = {}) {
+      const limit = 1000;
+      let offset = 0;
+      let allData = [];
+      let keepFetching = true;
+
+      while (keepFetching) {
+        const headers = {
+          'Range-Unit': 'items',
+          'Range': `${offset}-${offset + limit - 1}`,
+          ...(opts.headers || {})
+        };
+
+        const data = await supabaseRequest(path, { ...opts, headers });
+        
+        if (Array.isArray(data)) {
+          allData = allData.concat(data);
+          if (data.length < limit) {
+            keepFetching = false;
+          } else {
+            offset += limit;
+          }
+        } else {
+          allData = data;
+          keepFetching = false;
+        }
+      }
+      return allData;
+    }
+
+    function chunkArray(array, size) {
+      const chunked = [];
+      for (let i = 0; i < array.length; i += size) {
+        chunked.push(array.slice(i, i + size));
+      }
+      return chunked;
+    }
+
+    /* ================================================================
+       2. BUSCA DE PROCESSOS OTIMIZADA COM CACHE POR ETAPA
+       ================================================================ */
+    async function fetchProcessos() {
+      const atividades = ETAPAS_CONFIG[currentStage];
+      const buscarTodos = chkTodosUfs.checked;
+      const ufSelecionada = selUf.value;
+      const forceFetch = chkForceFetch ? chkForceFetch.checked : false;
+
+      if (!buscarTodos && !ufSelecionada) {
+        showToast('Selecione uma UF ou marque "Buscar todos os estados".', 'info');
+        return;
+      }
+
+      const stageCacheKey = `${currentStage}_TODOS`;
+
+      emptyState.style.display = 'none';
+      tableWrapper.style.display = 'none';
+      chartWrapper.style.display = 'none';
+      loader.style.display = 'flex';
+      btnFetch.disabled = true;
+      btnChart.disabled = true;
+
+      colFilters.forEach(input => input.value = '');
+
+      if (!forceFetch && memoryCache[stageCacheKey]) {
+        setTimeout(() => {
+          const baseData = memoryCache[stageCacheKey];
+          
+          rawData = buscarTodos 
+            ? [...baseData] 
+            : baseData.filter(row => row.uf_resolvida === ufSelecionada);
+
+          loader.style.display = 'none';
+          btnFetch.disabled = false;
+
+          if (rawData.length === 0) {
+            emptyState.style.display = 'block';
+            countBadge.textContent = '0';
+            showToast('Nenhum processo localizado para os filtros selecionados (memória).', 'info');
+          } else {
+            btnChart.disabled = false;
+            tableWrapper.style.display = 'block';
+            renderTable(rawData);
+            showToast(`${rawData.length} processos carregados da memória!`, 'success');
+          }
+        }, 200);
+        return;
+      }
+
+      try {
+        const atividadesQuery = atividades.map(a => `"${a}"`).join(',');
+        
+        let pathPrincipal = `principal?select=*`
+          + `&status_do_processo=in.("${encodeURIComponent('Em andamento')}","${encodeURIComponent('Atrasado')}")`
+          + `&atividade_atual=in.(${encodeURIComponent(atividadesQuery)})`;
+
+        const principalData = await fetchAllSupabase(pathPrincipal);
+        
+        if (!Array.isArray(principalData) || principalData.length === 0) {
+          rawData = [];
+          memoryCache[stageCacheKey] = [];
+
+          loader.style.display = 'none';
+          btnFetch.disabled = false;
+          emptyState.style.display = 'block';
+          countBadge.textContent = '0';
+          showToast('Nenhum processo localizado para estes filtros.', 'info');
+          return;
+        }
+
+        const processosIds = principalData.map(p => String(p.processo).trim()).filter(Boolean);
+        let allGridData = [];
+        
+        const idChunks = chunkArray(processosIds, 149);
+        for (const chunk of idChunks) {
+          const valoresIn = chunk.map(id => `"${id}"`).join(',');
+          let pathGrid = `grid_imoveis?select=*&processo=in.(${encodeURIComponent(valoresIn)})`;
+          
+          const gridChunk = await fetchAllSupabase(pathGrid);
+          if (Array.isArray(gridChunk)) {
+            allGridData = allGridData.concat(gridChunk);
+          }
+        }
+        
+        const gridMap = new Map();
+        allGridData.forEach(g => {
+          if (!g.processo) return;
+          const cleanKey = String(g.processo).trim();
+          if (!gridMap.has(cleanKey)) {
+            gridMap.set(cleanKey, []);
+          }
+          gridMap.get(cleanKey).push(g);
+        });
+
+        const stageAllRows = principalData.map(p => {
+            const cleanPKey = String(p.processo).trim();
+            const grids = gridMap.get(cleanPKey) || [];
+            
+            let finalImovel = extrairTextoValido(p.nome_do_imovel, p.nome_imovel, p.imovel, p.nome_propriedade, p.fazenda, p.propriedade);
+            let finalMunicipio = extrairTextoValido(p.municipio, p.cidade);
+            let finalUf = extrairTextoValido(p.uf, p.estado);
+
+            for (const grid of grids) {
+                const gImovel = extrairTextoValido(grid.nome_do_imovel, grid.nome_imovel, grid.imovel, grid.nome_propriedade, grid.fazenda, grid.propriedade);
+                const gMunicipio = extrairTextoValido(grid.municipio, grid.cidade);
+                const gUf = extrairTextoValido(grid.uf, grid.estado);
+
+                if (!finalImovel && gImovel) finalImovel = gImovel;
+                if (!finalMunicipio && gMunicipio) finalMunicipio = gMunicipio;
+                if (!finalUf && gUf) finalUf = gUf;
+            }
+
+            return {
+                ...p,
+                imovel_resolvido: finalImovel || 'Não informado',
+                municipio_resolvido: finalMunicipio || 'Não informado',
+                uf_resolvida: finalUf || 'N/D'
+            };
+        }).filter(row => row.uf_resolvida !== 'N/D' && row.imovel_resolvido !== 'Não informado');
+
+        memoryCache[stageCacheKey] = stageAllRows;
+
+        rawData = stageAllRows.filter(row => {
+            if (buscarTodos) return true;
+            if (ufSelecionada && row.uf_resolvida === ufSelecionada) return true;
+            return false;
+        });
+
+        loader.style.display = 'none';
+        btnFetch.disabled = false;
+
+        if (rawData.length === 0) {
+          emptyState.style.display = 'block';
+          countBadge.textContent = '0';
+          showToast('Nenhum processo localizado para estes filtros.', 'info');
+        } else {
+          btnChart.disabled = false;
+          tableWrapper.style.display = 'block';
+          renderTable(rawData);
+          showToast(`${rawData.length} processos encontrados!`, 'success');
+        }
+
+      } catch (err) {
+        console.error('[Processos] Falha ao executar fetchProcessos:', err);
+        loader.style.display = 'none';
+        btnFetch.disabled = false;
+        emptyState.style.display = 'block';
+        showToast(`Erro na busca: ${err.message}`, 'error');
+      }
+    }
+
+    /* ================================================================
+       3. RENDERIZAÇÃO DA TABELA
+       ================================================================ */
+    function renderTable(rows) {
+      tbody.innerHTML = '';
+      countBadge.textContent = rows.length;
+      
+      chkSelectAll.checked = false;
+      updateSelectedCount();
+
+      if (rows.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align:center; padding:3.5rem; color:var(--proc-text-muted);">
+              Nenhum processo atende aos critérios dos filtros aplicados.
+            </td>
+          </tr>`;
+        return;
+      }
+
+      rows.forEach(row => {
+        const processo = row.processo || '—';
+        const titular = row.nome || '—';
+        const imovel = row.imovel_resolvido || '—';
+        const locParts = [row.municipio_resolvido, row.uf_resolvida].filter(Boolean).join(' / ');
+        const municipioEstado = locParts ? locParts : '—';
+
+        const atividade = row.atividade_atual || '—';
+        const abertura = formatData(row.abertura);
+        const cnpjAter = row.cnpj_ater || '—';
+
+        const urlProcesso = `https://mapa.servicos.gov.br/workspace/flow/${encodeURIComponent(processo)}`;
+
+        const linkProcesso = (processo && processo !== '—') 
+          ? `<a href="${urlProcesso}" target="_blank" class="proc-link" title="Abrir processo no Lecom">${processo}</a>`
+          : '—';
+          
+        const checkboxCell = (processo && processo !== '—')
+          ? `<input type="checkbox" class="proc-chk-row" data-url="${urlProcesso}">`
+          : ``;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="text-align:center;">${checkboxCell}</td>
+          <td>${linkProcesso}</td>
+          <td>
+            <div class="proc-titularidad">
+              <span class="proc-titular-nome">${titular}</span>
+            </div>
+          </td>
+          <td><span class="proc-cpf">${formatCPF(row.cpf)}</span></td>
+          <td>
+            <div class="proc-localizacao">
+              <span class="proc-loc-imovel">${imovel}</span>
+              <span class="proc-loc-mun">${municipioEstado}</span>
+            </div>
+          </td>
+          <td><span class="proc-badge-tag">${atividade}</span></td>
+          <td>${abertura}</td>
+          <td>${cnpjAter}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    /* ================================================================
+       4. GERAÇÃO DO GRÁFICO MODERNIZADO COM CANVAS GRADIENT
+       ================================================================ */
+    const btnCloseChart = document.getElementById('btn-close-chart');
+
+    function formatLabel(str) {
+      return str.replace(/_/g, ' ')
+                .toLowerCase()
+                .replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function toggleChart() {
+      if (chartWrapper.style.display === 'block') {
+        hideChart();
+        return;
+      }
+
+      if (!rawData || rawData.length === 0) {
+        showToast('Nenhum dado disponível para gerar o gráfico.', 'warning');
+        return;
+      }
+
+      const atividades = ETAPAS_CONFIG[currentStage];
+      const ufsSet = new Set();
+      
+      rawData.forEach(d => {
+        ufsSet.add(d.uf_resolvida || 'N/D');
+      });
+
+      const labels = Array.from(ufsSet).sort();
+      const ctx = document.getElementById('proc-chart-canvas').getContext('2d');
+
+      // Paleta de Gradientes Fluídos para Visual Ultramoderno
+      const gradientColors = [
+        ['rgba(59, 130, 246, 0.85)', 'rgba(29, 78, 216, 0.85)'],
+        ['rgba(16, 185, 129, 0.85)', 'rgba(5, 150, 105, 0.85)'],
+        ['rgba(245, 158, 11, 0.85)', 'rgba(217, 119, 6, 0.85)'],
+        ['rgba(139, 92, 246, 0.85)', 'rgba(109, 40, 217, 0.85)'],
+        ['rgba(236, 72, 153, 0.85)', 'rgba(190, 24, 93, 0.85)'],
+        ['rgba(6, 182, 212, 0.85)', 'rgba(14, 116, 144, 0.85)']
+      ];
+
+      const datasets = atividades.map((ativ, index) => {
+        const dataPoints = labels.map(uf => {
+          return rawData.filter(d => {
+            const rowUf = d.uf_resolvida || 'N/D';
+            return rowUf === uf && d.atividade_atual === ativ;
+          }).length;
+        });
+
+        // Cria gradiente no Canvas
+        const grad = ctx.createLinearGradient(0, 0, 0, 300);
+        const palette = gradientColors[index % gradientColors.length];
+        grad.addColorStop(0, palette[0]);
+        grad.addColorStop(1, palette[1]);
+
+        return {
+          label: formatLabel(ativ),
+          data: dataPoints,
+          backgroundColor: grad,
+          borderRadius: 6,
+          borderWidth: 0,
+          maxBarThickness: 32
+        };
+      });
+
+      chartWrapper.style.display = 'block';
+      btnChart.innerHTML = '📊 Ocultar Gráfico';
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { 
+              position: 'top',
+              labels: { 
+                font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' }, 
+                usePointStyle: true,
+                padding: 16
+              }
+            },
+            tooltip: {
+              titleFont: { family: 'Plus Jakarta Sans', size: 13, weight: '700' },
+              bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
+              padding: 12,
+              cornerRadius: 8,
+              backgroundColor: 'rgba(15, 23, 42, 0.95)'
+            }
+          },
+          scales: {
+            x: { 
+              stacked: true, 
+              grid: { display: false },
+              ticks: { font: { family: 'Plus Jakarta Sans', weight: '600' } }
+            },
+            y: { 
+              stacked: true, 
+              border: { display: false }, 
+              grid: { color: '#F1F5F9' },
+              beginAtZero: true 
+            }
+          }
+        }
+      });
+
+      chartWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function hideChart() {
+      chartWrapper.style.display = 'none';
+      btnChart.innerHTML = '📊 Mostrar Gráfico';
+    }
+
+    btnChart.addEventListener('click', toggleChart);
+    if (btnCloseChart) {
+      btnCloseChart.addEventListener('click', hideChart);
+    }
+
+    /* ================================================================
+       5. FILTROS INDIVIDUAIS POR COLUNA E SELEÇÃO
+       ================================================================ */
+    function applyColumnFilters() {
+      if (!rawData || rawData.length === 0) return;
+
+      let filtered = [...rawData];
+
+      colFilters.forEach(input => {
+        const term = input.value.toLowerCase().trim();
+        const col = input.dataset.col;
+
+        if (!term) return;
+
+        filtered = filtered.filter(row => {
+          let val = '';
+          if (col === 'processo') val = String(row.processo || '');
+          else if (col === 'nome') val = String(row.nome || '');
+          else if (col === 'cpf') val = String(row.cpf || '');
+          else if (col === 'localizacao') {
+             val = `${row.imovel_resolvido || ''} ${row.municipio_resolvido || ''} ${row.uf_resolvida || ''}`;
+          }
+          else if (col === 'atividade') val = String(row.atividade_atual || '');
+          else if (col === 'abertura') val = formatData(row.abertura);
+          else if (col === 'cnpj') val = String(row.cnpj_ater || '');
+
+          return val.toLowerCase().includes(term);
+        });
+      });
+
+      renderTable(filtered);
+    }
+
+    colFilters.forEach(input => {
+      input.addEventListener('input', applyColumnFilters);
+    });
+
+    function updateSelectedCount() {
+      const checkboxes = document.querySelectorAll('.proc-chk-row');
+      const checked = document.querySelectorAll('.proc-chk-row:checked');
+      const count = checked.length;
+      
+      countSelectedSpan.textContent = count;
+      
+      if (count > 0) {
+        btnOpenSelected.style.display = 'inline-flex';
+      } else {
+        btnOpenSelected.style.display = 'none';
+      }
+
+      if (checkboxes.length > 0 && checkboxes.length === count) {
+        chkSelectAll.checked = true;
+      } else {
+        chkSelectAll.checked = false;
+      }
+    }
+
+    chkSelectAll.addEventListener('change', (e) => {
+      const checkboxes = document.querySelectorAll('.proc-chk-row');
+      checkboxes.forEach(cb => cb.checked = e.target.checked);
+      updateSelectedCount();
+    });
+
+    tbody.addEventListener('change', (e) => {
+      if (e.target.classList.contains('proc-chk-row')) {
+        updateSelectedCount();
+      }
+    });
+
+    btnOpenSelected.addEventListener('click', () => {
+      const checked = document.querySelectorAll('.proc-chk-row:checked');
+      if (checked.length === 0) return;
+      
+      let openedCount = 0;
+      checked.forEach(cb => {
+        if (cb.dataset.url) {
+          window.open(cb.dataset.url, '_blank');
+          openedCount++;
+        }
+      });
+      
+      showToast(`Abrindo ${openedCount} processo(s). Autorize os pop-ups se necessário!`, 'success');
+    });
+
+    /* ================================================================
+       6. SELEÇÃO DE ETAPAS E AUXILIARES
+       ================================================================ */
+    stageButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        stageButtons.forEach(b => b.classList.remove('active'));
+        const targetBtn = e.currentTarget;
+        targetBtn.classList.add('active');
+        currentStage = targetBtn.dataset.stage;
+        
+        if (chkTodosUfs.checked || selUf.value) {
+          fetchProcessos();
+        }
+      });
+    });
+
+    chkTodosUfs.addEventListener('change', (e) => {
+      selUf.disabled = e.target.checked;
+      if (e.target.checked) selUf.value = '';
+    });
+
+    btnFetch.addEventListener('click', fetchProcessos);
+
+    function formatCPF(cpf) {
+      if (!cpf) return '—';
+      const d = String(cpf).replace(/\D/g, '');
+      if (d.length !== 11) return cpf;
+      return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9,11)}`;
+    }
+
+    function formatData(dt) {
+      if (!dt) return '—';
+      try {
+        const d = new Date(dt);
+        if (isNaN(d.getTime())) return dt;
+        const parts = dt.split('T')[0].split('-');
+        if(parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        return d.toLocaleDateString('pt-BR');
+      } catch {
+        return dt;
+      }
+    }
+
+    function showToast(msg, type = 'info') {
+      const toast = document.getElementById('proc-toast');
+      toast.textContent = msg;
+      toast.className = `proc-toast proc-toast-${type}`;
+      void toast.offsetWidth;
+      toast.classList.add('proc-toast-visible');
+
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(() => {
+        toast.classList.remove('proc-toast-visible');
+      }, 5000);
+    }
+
+  })();
+</script>
