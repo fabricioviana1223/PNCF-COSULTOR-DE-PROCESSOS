@@ -2,7 +2,6 @@
 
 <div class="proc-container animate-fade-in">
 
-  <!-- CABEÇALHO PRINCIPAL -->
   <div class="proc-page-header">
     <div class="proc-header-text">
       <div class="proc-title-wrapper">
@@ -18,7 +17,6 @@
     </div>
   </div>
 
-  <!-- SELETOR DE ETAPAS -->
   <div class="proc-card proc-stage-bar">
     <button class="proc-stage-btn active" data-stage="ESTADUAL">
       <span class="proc-stage-icon">🏛️</span>
@@ -32,9 +30,12 @@
       <span class="proc-stage-icon">💰</span>
       <span>Etapa Financeira</span>
     </button>
+    <button class="proc-stage-btn" data-stage="GERAL">
+      <span class="proc-stage-icon">🌍</span>
+      <span>Visão Geral</span>
+    </button>
   </div>
 
-  <!-- PAINEL DE FILTROS -->
   <div class="proc-card proc-filters-panel">
     <div class="proc-filters-grid">
       
@@ -42,7 +43,7 @@
         <label class="proc-label-small" for="sel-uf">UF (ESTADO)</label>
         <div class="proc-input-wrapper">
           <select id="sel-uf" class="proc-input proc-select">
-            <option value="">— Selecione —</option>
+            <option value="">Todos os Estados</option>
             <option value="AC">AC</option><option value="AL">AL</option><option value="AM">AM</option>
             <option value="AP">AP</option><option value="BA">BA</option><option value="CE">CE</option>
             <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
@@ -56,15 +57,27 @@
         </div>
       </div>
 
-      <div class="proc-form-group proc-checkbox-group">
-        <label class="proc-checkbox-label">
-          <input type="checkbox" id="chk-todos-ufs">
-          <span class="proc-custom-check"></span>
-          <span>Buscar todos os estados</span>
-        </label>
+      <div class="proc-form-group">
+        <label class="proc-label-small" for="sel-busca-tipo">PESQUISA ESPECÍFICA</label>
+        <div class="proc-input-wrapper">
+          <select id="sel-busca-tipo" class="proc-input proc-select">
+            <option value="TUDO">Geral (Tudo)</option>
+            <option value="CPF">Por CPF</option>
+            <option value="PROCESSO">Por Código (Processo)</option>
+            <option value="IMOVEL">Por Nome do Imóvel</option>
+            <option value="SNCR">Por SNCR</option>
+          </select>
+        </div>
       </div>
 
-      <div class="proc-form-group proc-checkbox-group">
+      <div class="proc-form-group">
+        <label class="proc-label-small" for="ipt-busca-valor">VALOR DA BUSCA</label>
+        <div class="proc-input-wrapper">
+          <input type="text" id="ipt-busca-valor" class="proc-input" placeholder="Digite para buscar..." disabled>
+        </div>
+      </div>
+
+      <div class="proc-form-group proc-checkbox-group" style="padding-bottom: 0.8rem;">
         <label class="proc-checkbox-label" title="Se marcado, ignora a memória e busca na base de dados novamente.">
           <input type="checkbox" id="chk-force-fetch">
           <span class="proc-custom-check"></span>
@@ -101,7 +114,6 @@
     </div>
   </div>
 
-  <!-- ESTADO VAZIO -->
   <div id="proc-empty-state" class="proc-empty-state">
     <div class="proc-empty-icon-box">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -110,10 +122,9 @@
       </svg>
     </div>
     <div class="proc-empty-title">Aguardando consulta</div>
-    <div class="proc-empty-desc">Selecione uma UF ou marque <strong>"Buscar todos os estados"</strong> e clique em <strong>Buscar Processos</strong>.</div>
+    <div class="proc-empty-desc">Ajuste os filtros se necessário e clique em <strong>Buscar Processos</strong>.</div>
   </div>
 
-  <!-- LOADER COM ANIMAÇÃO MODERNA -->
   <div id="proc-loader" class="proc-loader-wrapper" style="display:none;">
     <div class="proc-loader-ring">
       <div></div><div></div><div></div><div></div>
@@ -121,7 +132,6 @@
     <span class="proc-loader-text">Conectando ao banco de dados e consultando registros...</span>
   </div>
 
-  <!-- ÁREA DO GRÁFICO -->
   <div id="proc-chart-wrapper" class="proc-card proc-chart-card animate-fade-in" style="display:none;">
     <div class="proc-chart-header">
       <div class="proc-chart-title-box">
@@ -140,7 +150,6 @@
     </div>
   </div>
 
-  <!-- TABELA DE RESULTADOS -->
   <div id="proc-table-wrapper" class="proc-card proc-table-card" style="display:none;">
     <div class="proc-table-scroll">
       <table class="proc-table">
@@ -177,17 +186,37 @@
               <div class="proc-th-title">CNPJ ATER <span class="proc-arrow">▼</span></div>
               <input type="text" class="proc-col-filter" data-col="cnpj" placeholder="Filtrar CNPJ...">
             </th>
+            <th id="th-etapa" style="min-width:150px; display:none;">
+              <div class="proc-th-title">LOCAL / ETAPA <span class="proc-arrow">▼</span></div>
+              <input type="text" class="proc-col-filter" data-col="etapa" placeholder="Filtrar Etapa...">
+            </th>
           </tr>
         </thead>
         <tbody id="proc-tbody">
         </tbody>
       </table>
     </div>
+
+    <div id="proc-pagination" class="proc-pagination">
+      <span id="proc-pagination-info" class="proc-pagination-info">—</span>
+      <div class="proc-pagination-controls">
+        <select id="proc-page-size" class="proc-input proc-select proc-page-size-select">
+          <option value="25">25 / página</option>
+          <option value="50" selected>50 / página</option>
+          <option value="100">100 / página</option>
+          <option value="250">250 / página</option>
+        </select>
+        <button id="proc-page-first" class="proc-btn proc-btn-secondary proc-page-btn" title="Primeira página">«</button>
+        <button id="proc-page-prev" class="proc-btn proc-btn-secondary proc-page-btn" title="Página anterior">‹</button>
+        <span id="proc-page-current" class="proc-page-current">Página 1 de 1</span>
+        <button id="proc-page-next" class="proc-btn proc-btn-secondary proc-page-btn" title="Próxima página">›</button>
+        <button id="proc-page-last" class="proc-btn proc-btn-secondary proc-page-btn" title="Última página">»</button>
+      </div>
+    </div>
   </div>
 
 </div>
 
-<!-- TOAST SYSTEM -->
 <div id="proc-toast" class="proc-toast" aria-live="polite"></div>
 
 <style>
@@ -410,8 +439,15 @@
     font-weight: 500;
   }
 
-  .proc-input:hover { border-color: #CBD5E1; }
-  .proc-input:focus {
+  .proc-input:disabled {
+    background: #F8FAFC;
+    color: #94A3B8;
+    cursor: not-allowed;
+    border-color: #E2E8F0;
+  }
+
+  .proc-input:hover:not(:disabled) { border-color: #CBD5E1; }
+  .proc-input:focus:not(:disabled) {
     outline: none;
     border-color: var(--proc-primary);
     box-shadow: 0 0 0 4px var(--proc-primary-glow);
@@ -597,6 +633,23 @@
   /* TABELA DESIGN PREMIUM */
   .proc-table-card { border: 1px solid var(--proc-border); }
   .proc-table-scroll { overflow-x: auto; width: 100%; }
+
+  /* PAGINAÇÃO */
+  .proc-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 0.9rem 1.25rem;
+    border-top: 1px solid var(--proc-border);
+    background: #F8FAFC;
+  }
+  .proc-pagination-info { font-size: 0.85rem; color: var(--proc-text-muted); font-weight: 600; }
+  .proc-pagination-controls { display: flex; align-items: center; gap: 0.5rem; }
+  .proc-page-size-select { height: 38px; padding: 0 0.6rem; font-size: 0.8rem; }
+  .proc-page-btn { height: 38px; padding: 0 0.9rem; font-size: 0.95rem; }
+  .proc-page-current { font-size: 0.85rem; font-weight: 700; color: var(--proc-text-main); min-width: 130px; text-align: center; }
   
   .proc-table { width: 100%; border-collapse: separate; border-spacing: 0; background: #FFFFFF; }
   .proc-table thead { background: #F8FAFC; position: sticky; top: 0; z-index: 10; }
@@ -735,6 +788,31 @@
   .proc-toast.proc-toast-error { background: #EF4444; color: #FFFFFF; }
   .proc-toast.proc-toast-info { background: #0F172A; color: #FFFFFF; border: 1px solid rgba(255,255,255,0.2); }
 
+  /* NOVA CLASSE TOOLTIP PARA ATIVIDADES */
+  .proc-tooltip {
+    position: relative;
+    cursor: help;
+  }
+  .proc-tooltip:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0F172A;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    white-space: normal;
+    width: max-content;
+    max-width: 250px;
+    z-index: 20;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    text-align: center;
+    font-weight: 500;
+  }
+
   /* RESPONSIVIDADE */
   @media (max-width: 768px) {
     .proc-stage-bar { flex-direction: column; }
@@ -771,6 +849,29 @@
         'ANALISE_CONTRATACAO'
       ]
     };
+    
+    // Visão Global (Soma de tudo)
+    ETAPAS_CONFIG.GERAL = [
+      ...ETAPAS_CONFIG.ESTADUAL,
+      ...ETAPAS_CONFIG.FEDERAL,
+      ...ETAPAS_CONFIG.FINANCEIRA
+    ];
+
+    /* ── Dicionário Oficial de Atividades (Baseado no Documento) ── */
+    const DESC_ATIVIDADES = {
+      'ASSUMIR_ANALISE_DE_DOCUMENTOS': 'Onde um dos analistas estaduais irá assumir a solicitação para analise.',
+      'ANALISAR_SOLICITACAO_ESTADO': 'Onde o analista irá fazer a analise dos dados inseridos pelo solicitante.',
+      'AJUSTES_DA_SOLICITACAO_ESTADO': 'Onde o solicitante irá corrigir os dados que o analista estadual requisitar.',
+      'ASSUMIR_SOLICITACAO': 'Onde um dos analistas federais irá assumir a solicitação.',
+      'ANALISAR_SOLICITACAO_FEDERAL': 'Onde o analista irá fazer a analise dos dados inseridos pelo solicitante.',
+      'AJUSTES_DA_SOLICITACAO_FEDERAL': 'Onde o solicitante irá corrigir os dados que o analista federal requisitar.',
+      'ASSUMIR_ANALISE_FINANCEIRA': 'Onde um dos analistas financeiros irá assumir uma solicitação.',
+      'ANALISE_FINANCEIRA': 'Onde o analista financeiro irá fazer a analise dos valores dentro da solicitação.',
+      'AJUSTES_DA_SOLICITACAO_BANCO': 'Onde o solicitante irá corrigir os dados que o analista financeiro requisitar.',
+      'DEFERIMENTO_DA_CONTRATACAO': 'Onde o solicitante receberá o deferimento da solicitação.',
+      'RECEBER_CONTRATO_DE_FINANCIAMENTO': 'Onde o analista irá receber o contrato para o financiamento.',
+      'ANALISE_CONTRATACAO': 'Análise de dados para contratação.'
+    };
 
     /* ── Estado Local ── */
     let currentStage = 'ESTADUAL';
@@ -780,7 +881,11 @@
 
     /* ── Elementos do DOM ── */
     const selUf = document.getElementById('sel-uf');
-    const chkTodosUfs = document.getElementById('chk-todos-ufs');
+    
+    // Novos elementos de busca específica
+    const selBuscaTipo = document.getElementById('sel-busca-tipo');
+    const iptBuscaValor = document.getElementById('ipt-busca-valor');
+    
     const chkForceFetch = document.getElementById('chk-force-fetch');
     const btnFetch = document.getElementById('btn-fetch');
     const btnChart = document.getElementById('btn-chart');
@@ -792,10 +897,48 @@
     const countBadge = document.getElementById('proc-badge-count');
     const stageButtons = document.querySelectorAll('.proc-stage-btn');
     const colFilters = document.querySelectorAll('.proc-col-filter');
+    const thEtapa = document.getElementById('th-etapa');
     
     const chkSelectAll = document.getElementById('chk-select-all');
     const btnOpenSelected = document.getElementById('btn-open-selected');
     const countSelectedSpan = document.getElementById('count-selected');
+
+    /* ── Elementos de Paginação ── */
+    const paginationInfo = document.getElementById('proc-pagination-info');
+    const pageCurrentEl = document.getElementById('proc-page-current');
+    const btnPageFirst = document.getElementById('proc-page-first');
+    const btnPagePrev = document.getElementById('proc-page-prev');
+    const btnPageNext = document.getElementById('proc-page-next');
+    const btnPageLast = document.getElementById('proc-page-last');
+    const selPageSize = document.getElementById('proc-page-size');
+
+    /* ── Estado da Paginação ── */
+    let currentPageNum = 1;
+    let pageSize = parseInt(selPageSize.value, 10) || 50;
+    let allFilteredRows = []; // conjunto completo (já filtrado) usado para paginar
+
+    /* ================================================================
+       Mapeador de Etapa
+       ================================================================ */
+    function getEtapaByAtividade(atividade) {
+      if (ETAPAS_CONFIG.ESTADUAL.includes(atividade)) return 'Etapa Estadual';
+      if (ETAPAS_CONFIG.FEDERAL.includes(atividade)) return 'Etapa Federal';
+      if (ETAPAS_CONFIG.FINANCEIRA.includes(atividade)) return 'Etapa Financeira';
+      return 'Desconhecida';
+    }
+
+    /* ================================================================
+       Controlador do Input de Busca Específica
+       ================================================================ */
+    selBuscaTipo.addEventListener('change', (e) => {
+      if (e.target.value === 'TUDO') {
+        iptBuscaValor.value = '';
+        iptBuscaValor.disabled = true;
+      } else {
+        iptBuscaValor.disabled = false;
+        iptBuscaValor.focus();
+      }
+    });
 
     /* ================================================================
        0. FUNÇÃO AUXILIAR DE EXTRAÇÃO DE TEXTO VÁLIDO
@@ -879,20 +1022,19 @@
     }
 
     /* ================================================================
-       2. BUSCA DE PROCESSOS OTIMIZADA COM CACHE POR ETAPA
+       2. BUSCA DE PROCESSOS OTIMIZADA COM CACHE GLOBAL E PROMISES
        ================================================================ */
     async function fetchProcessos() {
       const atividades = ETAPAS_CONFIG[currentStage];
-      const buscarTodos = chkTodosUfs.checked;
-      const ufSelecionada = selUf.value;
+      const ufSelecionada = selUf.value; 
+      const buscarTodos = !ufSelecionada; 
+      
+      const buscaTipo = selBuscaTipo.value;
+      const buscaValor = iptBuscaValor.value.toLowerCase().trim();
+
       const forceFetch = chkForceFetch ? chkForceFetch.checked : false;
 
-      if (!buscarTodos && !ufSelecionada) {
-        showToast('Selecione uma UF ou marque "Buscar todos os estados".', 'info');
-        return;
-      }
-
-      const stageCacheKey = `${currentStage}_TODOS`;
+      const stageCacheKey = currentStage === 'GERAL' ? 'GERAL_TODOS' : `${currentStage}_TODOS`;
 
       emptyState.style.display = 'none';
       tableWrapper.style.display = 'none';
@@ -903,13 +1045,22 @@
 
       colFilters.forEach(input => input.value = '');
 
-      if (!forceFetch && memoryCache[stageCacheKey]) {
+      let baseDataToFilter = null;
+      
+      if (!forceFetch) {
+        if (memoryCache['GERAL_TODOS']) {
+            baseDataToFilter = memoryCache['GERAL_TODOS'];
+            if (currentStage !== 'GERAL') {
+                baseDataToFilter = baseDataToFilter.filter(r => atividades.includes(r.atividade_atual));
+            }
+        } else if (memoryCache[stageCacheKey]) {
+            baseDataToFilter = memoryCache[stageCacheKey];
+        }
+      }
+
+      if (baseDataToFilter) {
         setTimeout(() => {
-          const baseData = memoryCache[stageCacheKey];
-          
-          rawData = buscarTodos 
-            ? [...baseData] 
-            : baseData.filter(row => row.uf_resolvida === ufSelecionada);
+          rawData = applySearchFilters(baseDataToFilter, buscarTodos, ufSelecionada, buscaTipo, buscaValor);
 
           loader.style.display = 'none';
           btnFetch.disabled = false;
@@ -922,7 +1073,7 @@
             btnChart.disabled = false;
             tableWrapper.style.display = 'block';
             renderTable(rawData);
-            showToast(`${rawData.length} processos carregados da memória!`, 'success');
+            showToast(`${rawData.length} processos filtrados a partir da memória!`, 'success');
           }
         }, 200);
         return;
@@ -945,23 +1096,28 @@
           btnFetch.disabled = false;
           emptyState.style.display = 'block';
           countBadge.textContent = '0';
-          showToast('Nenhum processo localizado para estes filtros.', 'info');
+          showToast('Nenhum processo localizado para estes filtros na base.', 'info');
           return;
         }
 
         const processosIds = principalData.map(p => String(p.processo).trim()).filter(Boolean);
         let allGridData = [];
         
+        // OTIMIZAÇÃO: Buscando os chunks do grid de forma paralela
         const idChunks = chunkArray(processosIds, 149);
-        for (const chunk of idChunks) {
+        const gridPromises = idChunks.map(chunk => {
           const valoresIn = chunk.map(id => `"${id}"`).join(',');
           let pathGrid = `grid_imoveis?select=*&processo=in.(${encodeURIComponent(valoresIn)})`;
-          
-          const gridChunk = await fetchAllSupabase(pathGrid);
+          return fetchAllSupabase(pathGrid);
+        });
+
+        const gridResults = await Promise.all(gridPromises);
+        
+        gridResults.forEach(gridChunk => {
           if (Array.isArray(gridChunk)) {
             allGridData = allGridData.concat(gridChunk);
           }
-        }
+        });
         
         const gridMap = new Map();
         allGridData.forEach(g => {
@@ -980,11 +1136,14 @@
             let finalImovel = extrairTextoValido(p.nome_do_imovel, p.nome_imovel, p.imovel, p.nome_propriedade, p.fazenda, p.propriedade);
             let finalMunicipio = extrairTextoValido(p.municipio, p.cidade);
             let finalUf = extrairTextoValido(p.uf, p.estado);
+            let sncrValue = ''; 
 
             for (const grid of grids) {
                 const gImovel = extrairTextoValido(grid.nome_do_imovel, grid.nome_imovel, grid.imovel, grid.nome_propriedade, grid.fazenda, grid.propriedade);
                 const gMunicipio = extrairTextoValido(grid.municipio, grid.cidade);
                 const gUf = extrairTextoValido(grid.uf, grid.estado);
+                
+                if(!sncrValue && grid.sncr) sncrValue = grid.sncr;
 
                 if (!finalImovel && gImovel) finalImovel = gImovel;
                 if (!finalMunicipio && gMunicipio) finalMunicipio = gMunicipio;
@@ -993,6 +1152,7 @@
 
             return {
                 ...p,
+                sncr: p.sncr || sncrValue || '',
                 imovel_resolvido: finalImovel || 'Não informado',
                 municipio_resolvido: finalMunicipio || 'Não informado',
                 uf_resolvida: finalUf || 'N/D'
@@ -1000,12 +1160,7 @@
         }).filter(row => row.uf_resolvida !== 'N/D' && row.imovel_resolvido !== 'Não informado');
 
         memoryCache[stageCacheKey] = stageAllRows;
-
-        rawData = stageAllRows.filter(row => {
-            if (buscarTodos) return true;
-            if (ufSelecionada && row.uf_resolvida === ufSelecionada) return true;
-            return false;
-        });
+        rawData = applySearchFilters(stageAllRows, buscarTodos, ufSelecionada, buscaTipo, buscaValor);
 
         loader.style.display = 'none';
         btnFetch.disabled = false;
@@ -1013,12 +1168,12 @@
         if (rawData.length === 0) {
           emptyState.style.display = 'block';
           countBadge.textContent = '0';
-          showToast('Nenhum processo localizado para estes filtros.', 'info');
+          showToast('Nenhum processo localizado após aplicar os filtros.', 'info');
         } else {
           btnChart.disabled = false;
           tableWrapper.style.display = 'block';
           renderTable(rawData);
-          showToast(`${rawData.length} processos encontrados!`, 'success');
+          showToast(`${rawData.length} processos encontrados e base atualizada!`, 'success');
         }
 
       } catch (err) {
@@ -1030,27 +1185,90 @@
       }
     }
 
+    /* Função Auxiliar para aplicar os Filtros de Tela */
+    function applySearchFilters(baseData, buscarTodos, ufSelecionada, buscaTipo, buscaValor) {
+        return baseData.filter(row => {
+            if (!buscarTodos && row.uf_resolvida !== ufSelecionada) {
+                return false;
+            }
+            if (buscaTipo !== 'TUDO' && buscaValor !== '') {
+                let valToCompare = '';
+                
+                if (buscaTipo === 'CPF') valToCompare = String(row.cpf || '').replace(/\D/g, '');
+                else if (buscaTipo === 'PROCESSO') valToCompare = String(row.processo || '');
+                else if (buscaTipo === 'IMOVEL') valToCompare = String(row.imovel_resolvido || '');
+                else if (buscaTipo === 'SNCR') valToCompare = String(row.sncr || ''); 
+
+                if (buscaTipo === 'CPF') {
+                    if (!valToCompare.includes(buscaValor.replace(/\D/g, ''))) return false;
+                } else {
+                    if (!valToCompare.toLowerCase().includes(buscaValor)) return false;
+                }
+            }
+            return true;
+        });
+    }
+
     /* ================================================================
        3. RENDERIZAÇÃO DA TABELA
        ================================================================ */
     function renderTable(rows) {
-      tbody.innerHTML = '';
+      // Guarda o conjunto completo já filtrado e reinicia para a primeira página.
+      // A renderização real (DOM) acontece em renderPage(), que só desenha
+      // a fatia da página atual — isso evita recriar milhares de <tr> a cada busca.
+      allFilteredRows = rows;
       countBadge.textContent = rows.length;
-      
+
       chkSelectAll.checked = false;
       updateSelectedCount();
 
+      currentPageNum = 1;
+      renderPage();
+    }
+
+    function getTotalPages() {
+      return Math.max(1, Math.ceil(allFilteredRows.length / pageSize));
+    }
+
+    function renderPage() {
+      const rows = allFilteredRows;
+      const totalPages = getTotalPages();
+      if (currentPageNum > totalPages) currentPageNum = totalPages;
+      if (currentPageNum < 1) currentPageNum = 1;
+
+      const startIdx = (currentPageNum - 1) * pageSize;
+      const pageRows = rows.slice(startIdx, startIdx + pageSize);
+
+      const isGeral = currentStage === 'GERAL';
+      thEtapa.style.display = isGeral ? 'table-cell' : 'none';
+
+      // Atualiza os controles/labels de paginação
       if (rows.length === 0) {
+        paginationInfo.textContent = 'Nenhum resultado';
+      } else {
+        const endIdx = Math.min(startIdx + pageRows.length, rows.length);
+        paginationInfo.textContent = `Mostrando ${startIdx + 1}–${endIdx} de ${rows.length} processos`;
+      }
+      pageCurrentEl.textContent = `Página ${currentPageNum} de ${totalPages}`;
+      btnPageFirst.disabled = currentPageNum <= 1;
+      btnPagePrev.disabled = currentPageNum <= 1;
+      btnPageNext.disabled = currentPageNum >= totalPages;
+      btnPageLast.disabled = currentPageNum >= totalPages;
+
+      tbody.innerHTML = '';
+
+      if (rows.length === 0) {
+        const colspan = isGeral ? 9 : 8;
         tbody.innerHTML = `
           <tr>
-            <td colspan="8" style="text-align:center; padding:3.5rem; color:var(--proc-text-muted);">
+            <td colspan="${colspan}" style="text-align:center; padding:3.5rem; color:var(--proc-text-muted);">
               Nenhum processo atende aos critérios dos filtros aplicados.
             </td>
           </tr>`;
         return;
       }
 
-      rows.forEach(row => {
+      pageRows.forEach(row => {
         const processo = row.processo || '—';
         const titular = row.nome || '—';
         const imovel = row.imovel_resolvido || '—';
@@ -1071,6 +1289,44 @@
           ? `<input type="checkbox" class="proc-chk-row" data-url="${urlProcesso}">`
           : ``;
 
+        // Tooltip da atividade
+        let descOficial = DESC_ATIVIDADES[atividade] || 'Descrição não especificada.';
+        
+        // Alerta especial para etapa de contrato financeiro embutido na tooltip
+        if (atividade === 'RECEBER_CONTRATO_DE_FINANCIAMENTO') {
+           descOficial += ' ⚠️ ATENÇÃO: Como não temos o controle e o banco não nos envia confirmação automática, não podemos ter a certeza se foi realmente contratado.';
+        }
+
+        let tagAtividadeHTML = `<span class="proc-badge-tag proc-tooltip" data-tooltip="${descOficial}">${atividade}</span>`;
+
+        // Monta a célula de Etapa se estiver na visão Global
+        let etapaHtml = '';
+        if (isGeral) {
+            const nomeEtapa = getEtapaByAtividade(row.atividade_atual);
+            let badgeBg = '#F1F5F9';
+            let badgeDot = '#94A3B8';
+            
+            if(nomeEtapa === 'Etapa Estadual') { 
+              badgeBg = '#FEF3C7'; badgeDot = '#F59E0B'; 
+            }
+            if(nomeEtapa === 'Etapa Federal') { 
+              badgeBg = '#DCFCE7'; badgeDot = '#10B981'; 
+            }
+            if(nomeEtapa === 'Etapa Financeira') { 
+              // Mantido o azul padrão conforme solicitado
+              badgeBg = '#DBEAFE'; badgeDot = '#3B82F6';
+            }
+
+            etapaHtml = `
+              <td>
+                <span class="proc-badge-tag" style="background:${badgeBg}; border:1px solid rgba(0,0,0,0.05);">
+                  <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background-color:${badgeDot};margin-right:4px;"></span>
+                  ${nomeEtapa}
+                </span>
+              </td>
+            `;
+        }
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td style="text-align:center;">${checkboxCell}</td>
@@ -1087,9 +1343,10 @@
               <span class="proc-loc-mun">${municipioEstado}</span>
             </div>
           </td>
-          <td><span class="proc-badge-tag">${atividade}</span></td>
+          <td><div style="display:flex; flex-direction:column; align-items:center;">${tagAtividadeHTML}</div></td>
           <td>${abertura}</td>
           <td>${cnpjAter}</td>
+          ${etapaHtml}
         `;
         tbody.appendChild(tr);
       });
@@ -1117,17 +1374,12 @@
         return;
       }
 
-      const atividades = ETAPAS_CONFIG[currentStage];
+      const isGeral = currentStage === 'GERAL';
       const ufsSet = new Set();
-      
-      rawData.forEach(d => {
-        ufsSet.add(d.uf_resolvida || 'N/D');
-      });
-
+      rawData.forEach(d => { ufsSet.add(d.uf_resolvida || 'N/D'); });
       const labels = Array.from(ufsSet).sort();
       const ctx = document.getElementById('proc-chart-canvas').getContext('2d');
 
-      // Paleta de Gradientes Fluídos para Visual Ultramoderno
       const gradientColors = [
         ['rgba(59, 130, 246, 0.85)', 'rgba(29, 78, 216, 0.85)'],
         ['rgba(16, 185, 129, 0.85)', 'rgba(5, 150, 105, 0.85)'],
@@ -1137,29 +1389,59 @@
         ['rgba(6, 182, 212, 0.85)', 'rgba(14, 116, 144, 0.85)']
       ];
 
-      const datasets = atividades.map((ativ, index) => {
-        const dataPoints = labels.map(uf => {
-          return rawData.filter(d => {
-            const rowUf = d.uf_resolvida || 'N/D';
-            return rowUf === uf && d.atividade_atual === ativ;
-          }).length;
+      let datasets = [];
+
+      // SE FOR VISÃO GERAL, AGRUPA POR ETAPAS. CASO CONTRÁRIO, MANTÉM POR ATIVIDADE.
+      if (isGeral) {
+        const etapas = ['Etapa Estadual', 'Etapa Federal', 'Etapa Financeira'];
+        
+        datasets = etapas.map((etapa, index) => {
+          const dataPoints = labels.map(uf => {
+            return rawData.filter(d => {
+              const rowUf = d.uf_resolvida || 'N/D';
+              return rowUf === uf && getEtapaByAtividade(d.atividade_atual) === etapa;
+            }).length;
+          });
+
+          const grad = ctx.createLinearGradient(0, 0, 0, 300);
+          const palette = gradientColors[index % gradientColors.length];
+          grad.addColorStop(0, palette[0]);
+          grad.addColorStop(1, palette[1]);
+
+          return {
+            label: etapa,
+            data: dataPoints,
+            backgroundColor: grad,
+            borderRadius: 6,
+            borderWidth: 0,
+            maxBarThickness: 40
+          };
         });
+      } else {
+        const atividades = ETAPAS_CONFIG[currentStage];
+        datasets = atividades.map((ativ, index) => {
+          const dataPoints = labels.map(uf => {
+            return rawData.filter(d => {
+              const rowUf = d.uf_resolvida || 'N/D';
+              return rowUf === uf && d.atividade_atual === ativ;
+            }).length;
+          });
 
-        // Cria gradiente no Canvas
-        const grad = ctx.createLinearGradient(0, 0, 0, 300);
-        const palette = gradientColors[index % gradientColors.length];
-        grad.addColorStop(0, palette[0]);
-        grad.addColorStop(1, palette[1]);
+          const grad = ctx.createLinearGradient(0, 0, 0, 300);
+          const palette = gradientColors[index % gradientColors.length];
+          grad.addColorStop(0, palette[0]);
+          grad.addColorStop(1, palette[1]);
 
-        return {
-          label: formatLabel(ativ),
-          data: dataPoints,
-          backgroundColor: grad,
-          borderRadius: 6,
-          borderWidth: 0,
-          maxBarThickness: 32
-        };
-      });
+          return {
+            label: formatLabel(ativ),
+            data: dataPoints,
+            backgroundColor: grad,
+            borderRadius: 6,
+            borderWidth: 0,
+            maxBarThickness: 32
+          };
+        });
+      }
 
       chartWrapper.style.display = 'block';
       btnChart.innerHTML = '📊 Ocultar Gráfico';
@@ -1222,7 +1504,7 @@
     }
 
     /* ================================================================
-       5. FILTROS INDIVIDUAIS POR COLUNA E SELEÇÃO
+       5. FILTROS INDIVIDUAIS POR COLUNA (Lupa nos Headers)
        ================================================================ */
     function applyColumnFilters() {
       if (!rawData || rawData.length === 0) return;
@@ -1246,6 +1528,7 @@
           else if (col === 'atividade') val = String(row.atividade_atual || '');
           else if (col === 'abertura') val = formatData(row.abertura);
           else if (col === 'cnpj') val = String(row.cnpj_ater || '');
+          else if (col === 'etapa') val = getEtapaByAtividade(row.atividade_atual);
 
           return val.toLowerCase().includes(term);
         });
@@ -1254,8 +1537,40 @@
       renderTable(filtered);
     }
 
+    // Debounce: só filtra ~280ms depois que o usuário parar de digitar.
+    // Isso evita refazer o filtro (e redesenhar a tabela) a cada tecla,
+    // que era a principal causa da travada com 12 mil processos carregados.
+    let colFilterDebounceTimer = null;
     colFilters.forEach(input => {
-      input.addEventListener('input', applyColumnFilters);
+      input.addEventListener('input', () => {
+        clearTimeout(colFilterDebounceTimer);
+        colFilterDebounceTimer = setTimeout(applyColumnFilters, 280);
+      });
+    });
+
+    /* ================================================================
+       5.1 CONTROLES DE PAGINAÇÃO
+       ================================================================ */
+    btnPageFirst.addEventListener('click', () => {
+      currentPageNum = 1;
+      renderPage();
+    });
+    btnPagePrev.addEventListener('click', () => {
+      currentPageNum -= 1;
+      renderPage();
+    });
+    btnPageNext.addEventListener('click', () => {
+      currentPageNum += 1;
+      renderPage();
+    });
+    btnPageLast.addEventListener('click', () => {
+      currentPageNum = getTotalPages();
+      renderPage();
+    });
+    selPageSize.addEventListener('change', () => {
+      pageSize = parseInt(selPageSize.value, 10) || 50;
+      currentPageNum = 1;
+      renderPage();
     });
 
     function updateSelectedCount() {
@@ -1315,15 +1630,9 @@
         targetBtn.classList.add('active');
         currentStage = targetBtn.dataset.stage;
         
-        if (chkTodosUfs.checked || selUf.value) {
-          fetchProcessos();
-        }
+        // Se já tiver alguma coisa preenchida na UF ou busca específica, já re-busca/filtra
+        fetchProcessos();
       });
-    });
-
-    chkTodosUfs.addEventListener('change', (e) => {
-      selUf.disabled = e.target.checked;
-      if (e.target.checked) selUf.value = '';
     });
 
     btnFetch.addEventListener('click', fetchProcessos);
