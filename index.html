@@ -18,7 +18,7 @@
   </div>
 
   <div class="proc-card proc-stage-bar">
-    <button class="proc-stage-btn active" data-stage="ESTADUAL">
+    <button class="proc-stage-btn" data-stage="ESTADUAL">
       <span class="proc-stage-icon">🏛️</span>
       <span>Etapa Estadual</span>
     </button>
@@ -30,7 +30,8 @@
       <span class="proc-stage-icon">💰</span>
       <span>Etapa Financeira</span>
     </button>
-    <button class="proc-stage-btn" data-stage="GERAL">
+    <!-- GERAL ativo por padrão -->
+    <button class="proc-stage-btn active" data-stage="GERAL">
       <span class="proc-stage-icon">🌍</span>
       <span>Visão Geral</span>
     </button>
@@ -58,26 +59,18 @@
       </div>
 
       <div class="proc-form-group">
-        <label class="proc-label-small" for="sel-busca-tipo">PESQUISA ESPECÍFICA</label>
+        <label class="proc-label-small" for="sel-filtro-sobrestado">STATUS DO PROCESSO</label>
         <div class="proc-input-wrapper">
-          <select id="sel-busca-tipo" class="proc-input proc-select">
-            <option value="TUDO">Geral (Tudo)</option>
-            <option value="CPF">Por CPF</option>
-            <option value="PROCESSO">Por Código (Processo)</option>
-            <option value="IMOVEL">Por Nome do Imóvel</option>
-            <option value="SNCR">Por SNCR</option>
+          <select id="sel-filtro-sobrestado" class="proc-input proc-select">
+            <option value="TUDO">Mostrar Tudo (Padrão)</option>
+            <option value="SOMENTE_SOBRESTADOS">Somente Sobrestados</option>
+            <option value="SEM_SOBRESTADOS">Mostrar Sem Sobrestados</option>
           </select>
         </div>
       </div>
 
-      <div class="proc-form-group">
-        <label class="proc-label-small" for="ipt-busca-valor">VALOR DA BUSCA</label>
-        <div class="proc-input-wrapper">
-          <input type="text" id="ipt-busca-valor" class="proc-input" placeholder="Digite para buscar..." disabled>
-        </div>
-      </div>
-
-      <div class="proc-form-group proc-checkbox-group" style="padding-bottom: 0.8rem;">
+      <div class="proc-form-group proc-checkbox-group" style="padding-bottom: 0.8rem; display: none;">
+        <!-- Checkbox oculto, agora o botão buscar faz isso diretamente -->
         <label class="proc-checkbox-label" title="Se marcado, ignora a memória e busca na base de dados novamente.">
           <input type="checkbox" id="chk-force-fetch">
           <span class="proc-custom-check"></span>
@@ -88,12 +81,11 @@
       <div class="proc-form-group proc-btn-group">
         <label class="proc-label-small">&nbsp;</label>
         <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
-          <button id="btn-fetch" class="proc-btn proc-btn-primary">
+          <button id="btn-fetch" class="proc-btn proc-btn-primary" title="Sincronizar e baixar dados novamente do banco.">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
             </svg>
-            <span>Buscar Processos</span>
+            <span>Atualizar Banco</span>
           </button>
 
           <button id="btn-chart" class="proc-btn proc-btn-secondary" disabled>
@@ -707,6 +699,29 @@
   .proc-table tbody tr { transition: var(--proc-transition); }
   .proc-table tbody tr:hover td { background: #F8FAFC; }
 
+  /* ESTILOS PARA PROCESSOS SOBRESTADOS (VERMELHO) */
+  .proc-row-sobrestrado td {
+    background-color: #fee2e2 !important; 
+    color: #991b1b !important;
+    border-bottom-color: #fca5a5 !important;
+  }
+  .proc-row-sobrestrado:hover td {
+    background-color: #fecaca !important;
+  }
+  .proc-row-sobrestrado .proc-link {
+    background: #fecaca;
+    color: #991b1b;
+  }
+  .proc-row-sobrestrado .proc-link:hover {
+    background: #991b1b;
+    color: #fff;
+  }
+  .proc-row-sobrestrado .proc-cpf {
+    background: #fecaca;
+    color: #991b1b;
+    border-color: #f87171;
+  }
+
   /* COMPONENTES INTERNOS DA TABELA */
   .proc-link {
     color: #2563EB;
@@ -726,8 +741,8 @@
   }
 
   .proc-titularidad, .proc-localizacao { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
-  .proc-titular-nome, .proc-loc-imovel { font-weight: 700; color: var(--proc-text-main); }
-  .proc-titular-fam, .proc-loc-mun { font-size: 0.775rem; color: var(--proc-text-muted); }
+  .proc-titular-nome, .proc-loc-imovel { font-weight: 700; color: inherit; }
+  .proc-titular-fam, .proc-loc-mun { font-size: 0.775rem; opacity: 0.8; }
 
   .proc-badge-tag {
     background: #F1F5F9;
@@ -824,7 +839,44 @@
   (function() {
     'use strict';
 
-    /* ── Configuração de Conexão com Supabase ── */
+    /* ── LISTA DE PROCESSOS SOBRESTADOS FIXA (Requerido pelo usuário) ── */
+    const SOBRESTADOS_LISTA = [
+      "4849719", "4318605", "6141345", "5455434", "6163418", "5891897", "5785614", "5784381", "5774124", "5483484", 
+      "5483041", "5477663", "5476758", "5441315", "5441278", "5425255", "5424452", "5424322", "5424239", "5422025", 
+      "5421893", "5421641", "5421406", "4483284", "4559500", "4537912", "4483634", "4483485", "4559531", "4559555", 
+      "4878747", "4555646", "4875692", "4538066", "4484213", "4556253", "4483579", "4537663", "4556119", "4517027", 
+      "4556306", "4621943", "4479924", "4947841", "4312204", "4516855", "4555690", "4623057", "4556077", "4559410", 
+      "4559375", "4556168", "4559951", "4516993", "4623541", "4556184", "4516936", "4555700", "4556052", "4515369", 
+      "4516966", "5476033", "5402705", "5401603", "5400998", "4447735", "4051241", "4050987", "4050329", "4050180", 
+      "4050026", "4049852", "4049705", "4040470", "4039460", "4039179", "4036946", "4029131", "4027156", "4026117", 
+      "5470550", "5553589", "5541312", "5535905", "5535898", "5535816", "6115979", "5927356", "5925420", "5925226", 
+      "5919098", "5902627", "5902423", "5902378", "5901612", "5901509", "5901417", "5901217", "5898194", "5898171", 
+      "5898145", "5898104", "5898045", "5897982", "5897882", "5897765", "5897718", "5897671", "5897585", "5896074", 
+      "5896031", "5895951", "5895627", "5895390", "5894781", "5894754", "5894723", "5894702", "5894673", "5894657", 
+      "5894635", "5894372", "5894329", "5894288", "5894239", "5894200", "5894096", "5894004", "4792043", "4791982", 
+      "4791769", "4791735", "4791705", "4791480", "4791395", "5270703", "5225878", "5526011", "5510484", "5510445", 
+      "5510402", "5510327", "5445045", "5445025", "5444999", "5444972", "5444928", "5444874", "5444796", "5444767", 
+      "5444722", "5444677", "5444644", "5444614", "5444575", "5444552", "5444509", "5444455", "5443963", "5443833", 
+      "5443771", "5443709", "5443663", "5443606", "5443348", "5442297", "5441453", "5408220", "3863167", "3836241", 
+      "3790360", "3787783", "3707098", "3696898", "3679939", "3679560", "3679426", "3669524", "3661835", "3612424", 
+      "3827799", "4844204", "5563839", "5563652", "5546234", "5546137", "5546052", "5541888", "5541738", "5541689", 
+      "5539990", "5539935", "5535964", "5535951", "5535930", "5882060", "5888031", "6132752", "6132751", "6132750", 
+      "6132749", "6132744", "6132742", "6132737", "6132734", "6132731", "6128451", "4688343", "2372868", "5983338", 
+      "5074951", "5551636", "5467046", "6184031", "6209887", "6231631", "6231481", "6255385", "6258382", "6258370", 
+      "6258361", "6258332", "6272142", "6187898", "6263339", "6269519", "6269144", "6269135", "6269128", "5895540", 
+      "5895824", "5895875", "5895946", "5896484", "5896624", "5896700", "5896834", "5896949", "6311694", "6287574", 
+      "6306473", "6306864", "6306698", "6306573", "6306442", "6357311", "6332068", "6352363", "6338926", "6338908", 
+      "6290405", "6284404", "6261164", "6261159", "6261144", "6261140", "6261122", "6261107", "6261100", "6261086", 
+      "6261065", "6261056", "6261049", "6261020", "6243656", "6343574", "4595675", "4595558", "4594875", "4594800", 
+      "4592010", "5687324", "5783611", "5785635", "5795432", "5805405", "5823118", "5823127", "5823136", "5823148", 
+      "5823159", "5823168", "5823178", "5823195", "5823203", "5823208", "5823217", "5823226", "5823239", "5823252", 
+      "5823263", "5823273", "5823279", "5823293", "5823322", "5823856", "5823858", "5823859", "5962308", "5823865", 
+      "5823870", "6192753", "5831757"
+    ];
+    // Transforma a lista de array em um Set para consulta super rápida
+    const setSobrestados = new Set(SOBRESTADOS_LISTA);
+
+    /* ── Configuração de Conexão com Supabase (Apenas o principal mantido) ── */
     const SUPABASE_URL = 'https://bvdphvczpvzhjdaylybm.supabase.co';
     const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2ZHBodmN6cHZ6aGpkYXlseWJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MTA5NDYsImV4cCI6MjA4NzA4Njk0Nn0.pBbSwWxyY_DGH66q9xeKAd6W2ySdltz8fQHdP9TFgwo';
 
@@ -857,7 +909,7 @@
       ...ETAPAS_CONFIG.FINANCEIRA
     ];
 
-    /* ── Dicionário Oficial de Atividades (Baseado no Documento) ── */
+    /* ── Dicionário Oficial de Atividades ── */
     const DESC_ATIVIDADES = {
       'ASSUMIR_ANALISE_DE_DOCUMENTOS': 'Onde um dos analistas estaduais irá assumir a solicitação para analise.',
       'ANALISAR_SOLICITACAO_ESTADO': 'Onde o analista irá fazer a analise dos dados inseridos pelo solicitante.',
@@ -874,19 +926,14 @@
     };
 
     /* ── Estado Local ── */
-    let currentStage = 'ESTADUAL';
+    let currentStage = 'GERAL'; // Alterado para iniciar buscando TODOS OS DADOS de uma vez
     let rawData = [];
     let chartInstance = null; 
     let memoryCache = {};
 
     /* ── Elementos do DOM ── */
     const selUf = document.getElementById('sel-uf');
-    
-    // Novos elementos de busca específica
-    const selBuscaTipo = document.getElementById('sel-busca-tipo');
-    const iptBuscaValor = document.getElementById('ipt-busca-valor');
-    
-    const chkForceFetch = document.getElementById('chk-force-fetch');
+    const selFiltroSobrestado = document.getElementById('sel-filtro-sobrestado');
     const btnFetch = document.getElementById('btn-fetch');
     const btnChart = document.getElementById('btn-chart');
     const tbody = document.getElementById('proc-tbody');
@@ -898,7 +945,6 @@
     const stageButtons = document.querySelectorAll('.proc-stage-btn');
     const colFilters = document.querySelectorAll('.proc-col-filter');
     const thEtapa = document.getElementById('th-etapa');
-    
     const chkSelectAll = document.getElementById('chk-select-all');
     const btnOpenSelected = document.getElementById('btn-open-selected');
     const countSelectedSpan = document.getElementById('count-selected');
@@ -915,11 +961,8 @@
     /* ── Estado da Paginação ── */
     let currentPageNum = 1;
     let pageSize = parseInt(selPageSize.value, 10) || 50;
-    let allFilteredRows = []; // conjunto completo (já filtrado) usado para paginar
+    let allFilteredRows = [];
 
-    /* ================================================================
-       Mapeador de Etapa
-       ================================================================ */
     function getEtapaByAtividade(atividade) {
       if (ETAPAS_CONFIG.ESTADUAL.includes(atividade)) return 'Etapa Estadual';
       if (ETAPAS_CONFIG.FEDERAL.includes(atividade)) return 'Etapa Federal';
@@ -927,22 +970,6 @@
       return 'Desconhecida';
     }
 
-    /* ================================================================
-       Controlador do Input de Busca Específica
-       ================================================================ */
-    selBuscaTipo.addEventListener('change', (e) => {
-      if (e.target.value === 'TUDO') {
-        iptBuscaValor.value = '';
-        iptBuscaValor.disabled = true;
-      } else {
-        iptBuscaValor.disabled = false;
-        iptBuscaValor.focus();
-      }
-    });
-
-    /* ================================================================
-       0. FUNÇÃO AUXILIAR DE EXTRAÇÃO DE TEXTO VÁLIDO
-       ================================================================ */
     function extrairTextoValido(...valores) {
       for (const v of valores) {
         if (v !== null && v !== undefined) {
@@ -956,16 +983,12 @@
       return '';
     }
 
-    /* ================================================================
-       1. REQUISITOR SUPABASE NATIVO (REST API)
-       ================================================================ */
     async function supabaseRequest(path, opts = {}) {
-      const token = localStorage.getItem('supabase.auth.token') || ANON_KEY;
       const url = `${SUPABASE_URL}/rest/v1/${path}`;
 
       const headers = {
         'apikey': ANON_KEY,
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${ANON_KEY}`,
         'Content-Type': 'application/json',
         'Prefer': 'return=representation',
         ...(opts.headers || {}),
@@ -1022,17 +1045,13 @@
     }
 
     /* ================================================================
-       2. BUSCA DE PROCESSOS OTIMIZADA COM CACHE GLOBAL E PROMISES
+       BUSCA DE PROCESSOS
        ================================================================ */
-    async function fetchProcessos() {
+    async function fetchProcessos(forceUpdateFromDB = false) {
       const atividades = ETAPAS_CONFIG[currentStage];
       const ufSelecionada = selUf.value; 
       const buscarTodos = !ufSelecionada; 
-      
-      const buscaTipo = selBuscaTipo.value;
-      const buscaValor = iptBuscaValor.value.toLowerCase().trim();
-
-      const forceFetch = chkForceFetch ? chkForceFetch.checked : false;
+      const filtroSobrestado = selFiltroSobrestado.value;
 
       const stageCacheKey = currentStage === 'GERAL' ? 'GERAL_TODOS' : `${currentStage}_TODOS`;
 
@@ -1047,7 +1066,8 @@
 
       let baseDataToFilter = null;
       
-      if (!forceFetch) {
+      // Se não estivermos forçando o botão de busca, tenta puxar da memória!
+      if (!forceUpdateFromDB) {
         if (memoryCache['GERAL_TODOS']) {
             baseDataToFilter = memoryCache['GERAL_TODOS'];
             if (currentStage !== 'GERAL') {
@@ -1058,9 +1078,10 @@
         }
       }
 
+      // Achou na memória (troca de aba instantânea)
       if (baseDataToFilter) {
         setTimeout(() => {
-          rawData = applySearchFilters(baseDataToFilter, buscarTodos, ufSelecionada, buscaTipo, buscaValor);
+          rawData = applySearchFilters(baseDataToFilter, buscarTodos, ufSelecionada, filtroSobrestado);
 
           loader.style.display = 'none';
           btnFetch.disabled = false;
@@ -1068,14 +1089,14 @@
           if (rawData.length === 0) {
             emptyState.style.display = 'block';
             countBadge.textContent = '0';
-            showToast('Nenhum processo localizado para os filtros selecionados (memória).', 'info');
+            showToast('Nenhum processo localizado para os filtros selecionados.', 'info');
           } else {
             btnChart.disabled = false;
             tableWrapper.style.display = 'block';
             renderTable(rawData);
-            showToast(`${rawData.length} processos filtrados a partir da memória!`, 'success');
+            if(forceUpdateFromDB === false) showToast(`Atualizado a partir da memória instantaneamente.`, 'success');
           }
-        }, 200);
+        }, 50);
         return;
       }
 
@@ -1086,6 +1107,7 @@
           + `&status_do_processo=in.("${encodeURIComponent('Em andamento')}","${encodeURIComponent('Atrasado')}")`
           + `&atividade_atual=in.(${encodeURIComponent(atividadesQuery)})`;
 
+        // 1. Puxa os dados principais
         const principalData = await fetchAllSupabase(pathPrincipal);
         
         if (!Array.isArray(principalData) || principalData.length === 0) {
@@ -1096,14 +1118,15 @@
           btnFetch.disabled = false;
           emptyState.style.display = 'block';
           countBadge.textContent = '0';
-          showToast('Nenhum processo localizado para estes filtros na base.', 'info');
+          showToast('Nenhum processo localizado na base.', 'info');
           return;
         }
+
+        // REMOVIDO: Consulta ao novo supabase para os sobrestrados (Agora é usado o setSobrestados direto do script)
 
         const processosIds = principalData.map(p => String(p.processo).trim()).filter(Boolean);
         let allGridData = [];
         
-        // OTIMIZAÇÃO: Buscando os chunks do grid de forma paralela
         const idChunks = chunkArray(processosIds, 149);
         const gridPromises = idChunks.map(chunk => {
           const valoresIn = chunk.map(id => `"${id}"`).join(',');
@@ -1155,12 +1178,15 @@
                 sncr: p.sncr || sncrValue || '',
                 imovel_resolvido: finalImovel || 'Não informado',
                 municipio_resolvido: finalMunicipio || 'Não informado',
-                uf_resolvida: finalUf || 'N/D'
+                uf_resolvida: finalUf || 'N/D',
+                // Define flag de sobrestrado VERIFICANDO NOSSA LISTA FIXA DO INÍCIO
+                is_sobrestrado: setSobrestados.has(cleanPKey)
             };
         }).filter(row => row.uf_resolvida !== 'N/D' && row.imovel_resolvido !== 'Não informado');
 
+        // Sempre que puxar do banco novamente, salva no cache.
         memoryCache[stageCacheKey] = stageAllRows;
-        rawData = applySearchFilters(stageAllRows, buscarTodos, ufSelecionada, buscaTipo, buscaValor);
+        rawData = applySearchFilters(stageAllRows, buscarTodos, ufSelecionada, filtroSobrestado);
 
         loader.style.display = 'none';
         btnFetch.disabled = false;
@@ -1173,7 +1199,7 @@
           btnChart.disabled = false;
           tableWrapper.style.display = 'block';
           renderTable(rawData);
-          showToast(`${rawData.length} processos encontrados e base atualizada!`, 'success');
+          showToast(`${rawData.length} processos encontrados e base sincronizada!`, 'success');
         }
 
       } catch (err) {
@@ -1185,37 +1211,25 @@
       }
     }
 
-    /* Função Auxiliar para aplicar os Filtros de Tela */
-    function applySearchFilters(baseData, buscarTodos, ufSelecionada, buscaTipo, buscaValor) {
+    function applySearchFilters(baseData, buscarTodos, ufSelecionada, filtroSobrestado) {
         return baseData.filter(row => {
             if (!buscarTodos && row.uf_resolvida !== ufSelecionada) {
                 return false;
             }
-            if (buscaTipo !== 'TUDO' && buscaValor !== '') {
-                let valToCompare = '';
-                
-                if (buscaTipo === 'CPF') valToCompare = String(row.cpf || '').replace(/\D/g, '');
-                else if (buscaTipo === 'PROCESSO') valToCompare = String(row.processo || '');
-                else if (buscaTipo === 'IMOVEL') valToCompare = String(row.imovel_resolvido || '');
-                else if (buscaTipo === 'SNCR') valToCompare = String(row.sncr || ''); 
-
-                if (buscaTipo === 'CPF') {
-                    if (!valToCompare.includes(buscaValor.replace(/\D/g, ''))) return false;
-                } else {
-                    if (!valToCompare.toLowerCase().includes(buscaValor)) return false;
-                }
+            if (filtroSobrestado === 'SOMENTE_SOBRESTADOS' && !row.is_sobrestrado) {
+                return false;
+            }
+            if (filtroSobrestado === 'SEM_SOBRESTADOS' && row.is_sobrestrado) {
+                return false;
             }
             return true;
         });
     }
 
     /* ================================================================
-       3. RENDERIZAÇÃO DA TABELA
+       RENDERIZAÇÃO DA TABELA
        ================================================================ */
     function renderTable(rows) {
-      // Guarda o conjunto completo já filtrado e reinicia para a primeira página.
-      // A renderização real (DOM) acontece em renderPage(), que só desenha
-      // a fatia da página atual — isso evita recriar milhares de <tr> a cada busca.
       allFilteredRows = rows;
       countBadge.textContent = rows.length;
 
@@ -1242,7 +1256,6 @@
       const isGeral = currentStage === 'GERAL';
       thEtapa.style.display = isGeral ? 'table-cell' : 'none';
 
-      // Atualiza os controles/labels de paginação
       if (rows.length === 0) {
         paginationInfo.textContent = 'Nenhum resultado';
       } else {
@@ -1289,17 +1302,14 @@
           ? `<input type="checkbox" class="proc-chk-row" data-url="${urlProcesso}">`
           : ``;
 
-        // Tooltip da atividade
         let descOficial = DESC_ATIVIDADES[atividade] || 'Descrição não especificada.';
         
-        // Alerta especial para etapa de contrato financeiro embutido na tooltip
         if (atividade === 'RECEBER_CONTRATO_DE_FINANCIAMENTO') {
            descOficial += ' ⚠️ ATENÇÃO: Como não temos o controle e o banco não nos envia confirmação automática, não podemos ter a certeza se foi realmente contratado.';
         }
 
         let tagAtividadeHTML = `<span class="proc-badge-tag proc-tooltip" data-tooltip="${descOficial}">${atividade}</span>`;
 
-        // Monta a célula de Etapa se estiver na visão Global
         let etapaHtml = '';
         if (isGeral) {
             const nomeEtapa = getEtapaByAtividade(row.atividade_atual);
@@ -1313,7 +1323,6 @@
               badgeBg = '#DCFCE7'; badgeDot = '#10B981'; 
             }
             if(nomeEtapa === 'Etapa Financeira') { 
-              // Mantido o azul padrão conforme solicitado
               badgeBg = '#DBEAFE'; badgeDot = '#3B82F6';
             }
 
@@ -1328,6 +1337,12 @@
         }
 
         const tr = document.createElement('tr');
+        
+        if (row.is_sobrestrado) {
+            tr.classList.add('proc-row-sobrestrado');
+            tr.title = "Processo Sobrestado"; // Exibe esse texto ao passar o mouse.
+        }
+
         tr.innerHTML = `
           <td style="text-align:center;">${checkboxCell}</td>
           <td>${linkProcesso}</td>
@@ -1353,7 +1368,7 @@
     }
 
     /* ================================================================
-       4. GERAÇÃO DO GRÁFICO MODERNIZADO COM CANVAS GRADIENT
+       GERAÇÃO DO GRÁFICO MODERNIZADO 
        ================================================================ */
     const btnCloseChart = document.getElementById('btn-close-chart');
 
@@ -1391,7 +1406,6 @@
 
       let datasets = [];
 
-      // SE FOR VISÃO GERAL, AGRUPA POR ETAPAS. CASO CONTRÁRIO, MANTÉM POR ATIVIDADE.
       if (isGeral) {
         const etapas = ['Etapa Estadual', 'Etapa Federal', 'Etapa Financeira'];
         
@@ -1504,7 +1518,7 @@
     }
 
     /* ================================================================
-       5. FILTROS INDIVIDUAIS POR COLUNA (Lupa nos Headers)
+       FILTROS INDIVIDUAIS POR COLUNA E EVENTOS
        ================================================================ */
     function applyColumnFilters() {
       if (!rawData || rawData.length === 0) return;
@@ -1537,9 +1551,6 @@
       renderTable(filtered);
     }
 
-    // Debounce: só filtra ~280ms depois que o usuário parar de digitar.
-    // Isso evita refazer o filtro (e redesenhar a tabela) a cada tecla,
-    // que era a principal causa da travada com 12 mil processos carregados.
     let colFilterDebounceTimer = null;
     colFilters.forEach(input => {
       input.addEventListener('input', () => {
@@ -1548,30 +1559,11 @@
       });
     });
 
-    /* ================================================================
-       5.1 CONTROLES DE PAGINAÇÃO
-       ================================================================ */
-    btnPageFirst.addEventListener('click', () => {
-      currentPageNum = 1;
-      renderPage();
-    });
-    btnPagePrev.addEventListener('click', () => {
-      currentPageNum -= 1;
-      renderPage();
-    });
-    btnPageNext.addEventListener('click', () => {
-      currentPageNum += 1;
-      renderPage();
-    });
-    btnPageLast.addEventListener('click', () => {
-      currentPageNum = getTotalPages();
-      renderPage();
-    });
-    selPageSize.addEventListener('change', () => {
-      pageSize = parseInt(selPageSize.value, 10) || 50;
-      currentPageNum = 1;
-      renderPage();
-    });
+    btnPageFirst.addEventListener('click', () => { currentPageNum = 1; renderPage(); });
+    btnPagePrev.addEventListener('click', () => { currentPageNum -= 1; renderPage(); });
+    btnPageNext.addEventListener('click', () => { currentPageNum += 1; renderPage(); });
+    btnPageLast.addEventListener('click', () => { currentPageNum = getTotalPages(); renderPage(); });
+    selPageSize.addEventListener('change', () => { pageSize = parseInt(selPageSize.value, 10) || 50; currentPageNum = 1; renderPage(); });
 
     function updateSelectedCount() {
       const checkboxes = document.querySelectorAll('.proc-chk-row');
@@ -1616,13 +1608,10 @@
           openedCount++;
         }
       });
-      
       showToast(`Abrindo ${openedCount} processo(s). Autorize os pop-ups se necessário!`, 'success');
     });
 
-    /* ================================================================
-       6. SELEÇÃO DE ETAPAS E AUXILIARES
-       ================================================================ */
+    // Clicar nas abas APENAS filtra usando o cache (passa "false")
     stageButtons.forEach(btn => {
       btn.addEventListener('click', (e) => {
         stageButtons.forEach(b => b.classList.remove('active'));
@@ -1630,12 +1619,24 @@
         targetBtn.classList.add('active');
         currentStage = targetBtn.dataset.stage;
         
-        // Se já tiver alguma coisa preenchida na UF ou busca específica, já re-busca/filtra
-        fetchProcessos();
+        fetchProcessos(false); 
       });
     });
+    
+    selFiltroSobrestado.addEventListener('change', () => {
+        if (Object.keys(memoryCache).length > 0) {
+            fetchProcessos(false);
+        }
+    });
 
-    btnFetch.addEventListener('click', fetchProcessos);
+    selUf.addEventListener('change', () => {
+        if (Object.keys(memoryCache).length > 0) {
+            fetchProcessos(false);
+        }
+    });
+
+    // Clicar em "Buscar" FORÇA carregar do banco de dados (passa "true")
+    btnFetch.addEventListener('click', () => fetchProcessos(true));
 
     function formatCPF(cpf) {
       if (!cpf) return '—';
@@ -1669,6 +1670,11 @@
         toast.classList.remove('proc-toast-visible');
       }, 5000);
     }
+
+    // DISPARA O CARREGAMENTO GERAL AO ABRIR O SITE AUTOMATICAMENTE
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchProcessos(true);
+    });
 
   })();
 </script>
