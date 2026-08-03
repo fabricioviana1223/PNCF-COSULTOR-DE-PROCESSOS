@@ -262,7 +262,7 @@
   </div>
   <div class="pfd-footer">
     <button type="button" class="pfd-btn pfd-btn-clear" id="pfd-btn-clear">Limpar Filtro</button>
-    <button type="button" class="pfd-btn pfd-btn-apply" id="pfd-btn-apply">Aplicar</button>
+    <button type="button" class="pfd-btn pfd-btn-apply" id="pfd-btn-apply">Fechar</button>
   </div>
 </div>
 
@@ -2067,7 +2067,7 @@
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
-    function buildChecklist(listEl, values, checkedSet, searchTerm) {
+    function buildChecklist(listEl, values, checkedSet, searchTerm, onToggle) {
       listEl.innerHTML = '';
       const term = (searchTerm || '').toLowerCase().trim();
       const filteredValues = term
@@ -2090,6 +2090,7 @@
         checkbox.addEventListener('change', () => {
           if (checkbox.checked) checkedSet.add(val);
           else checkedSet.delete(val);
+          if (typeof onToggle === 'function') onToggle();
         });
 
         const span = document.createElement('span');
@@ -2103,13 +2104,42 @@
       listEl.appendChild(frag);
     }
 
+    let liveFilterDebounceTimer = null;
+    function applyLiveFilter() {
+      clearTimeout(liveFilterDebounceTimer);
+      liveFilterDebounceTimer = setTimeout(() => {
+        activeImovelFilter = (tempImovelChecked.size === allImovelValues.length) ? null : new Set(tempImovelChecked);
+        activeMunicipioFilter = (tempMunicipioChecked.size === allMunicipioValues.length) ? null : new Set(tempMunicipioChecked);
+
+        const hasActiveFilter = !!activeImovelFilter || !!activeMunicipioFilter;
+        locFilterBtn.classList.toggle('pfd-active', hasActiveFilter);
+        locFilterBtn.textContent = hasActiveFilter ? '⏷' : '▼';
+
+        applyColumnFilters();
+      }, 120);
+    }
+
     function refreshImovelList() {
-      buildChecklist(pfdListImovel, allImovelValues, tempImovelChecked, pfdSearchImovel.value);
+      buildChecklist(pfdListImovel, allImovelValues, tempImovelChecked, pfdSearchImovel.value, () => {
+        refreshImovelCount();
+        applyLiveFilter();
+      });
+      refreshImovelCount();
+    }
+
+    function refreshImovelCount() {
       pfdCountImovel.textContent = `${tempImovelChecked.size} de ${allImovelValues.length} selecionadas`;
     }
 
     function refreshMunicipioList() {
-      buildChecklist(pfdListMunicipio, allMunicipioValues, tempMunicipioChecked, pfdSearchMunicipio.value);
+      buildChecklist(pfdListMunicipio, allMunicipioValues, tempMunicipioChecked, pfdSearchMunicipio.value, () => {
+        refreshMunicipioCount();
+        applyLiveFilter();
+      });
+      refreshMunicipioCount();
+    }
+
+    function refreshMunicipioCount() {
       pfdCountMunicipio.textContent = `${tempMunicipioChecked.size} de ${allMunicipioValues.length} selecionados`;
     }
 
@@ -2168,39 +2198,38 @@
     pfdCheckAllImovel.addEventListener('click', () => {
       allImovelValues.forEach(v => tempImovelChecked.add(v));
       refreshImovelList();
+      applyLiveFilter();
     });
     pfdUncheckAllImovel.addEventListener('click', () => {
       tempImovelChecked.clear();
       refreshImovelList();
+      applyLiveFilter();
     });
     pfdCheckAllMunicipio.addEventListener('click', () => {
       allMunicipioValues.forEach(v => tempMunicipioChecked.add(v));
       refreshMunicipioList();
+      applyLiveFilter();
     });
     pfdUncheckAllMunicipio.addEventListener('click', () => {
       tempMunicipioChecked.clear();
       refreshMunicipioList();
+      applyLiveFilter();
     });
 
     pfdBtnApply.addEventListener('click', () => {
-      activeImovelFilter = (tempImovelChecked.size === allImovelValues.length) ? null : new Set(tempImovelChecked);
-      activeMunicipioFilter = (tempMunicipioChecked.size === allMunicipioValues.length) ? null : new Set(tempMunicipioChecked);
-
-      const hasActiveFilter = !!activeImovelFilter || !!activeMunicipioFilter;
-      locFilterBtn.classList.toggle('pfd-active', hasActiveFilter);
-      locFilterBtn.textContent = hasActiveFilter ? '⏷' : '▼';
-
-      applyColumnFilters();
       closeFilterDropdown();
     });
 
     pfdBtnClear.addEventListener('click', () => {
       activeImovelFilter = null;
       activeMunicipioFilter = null;
+      tempImovelChecked = new Set(allImovelValues);
+      tempMunicipioChecked = new Set(allMunicipioValues);
+      refreshImovelList();
+      refreshMunicipioList();
       locFilterBtn.classList.remove('pfd-active');
       locFilterBtn.textContent = '▼';
       applyColumnFilters();
-      closeFilterDropdown();
     });
 
     btnPageFirst.addEventListener('click', () => { currentPageNum = 1; renderPage(); });
