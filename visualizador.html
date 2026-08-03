@@ -169,35 +169,38 @@
               <input type="checkbox" id="chk-select-all" class="proc-chk-custom" title="Selecionar Todos">
             </th>
             <th style="min-width:150px;">
-              <div class="proc-th-title">PROCESSO <span class="proc-arrow">▼</span></div>
+              <div class="proc-th-title">PROCESSO</div>
               <input type="text" class="proc-col-filter" data-col="processo" placeholder="Filtrar Nº...">
             </th>
             <th style="min-width:230px;">
-              <div class="proc-th-title">TITULARIDADE <span class="proc-arrow">▼</span></div>
+              <div class="proc-th-title">TITULARIDADE</div>
               <input type="text" class="proc-col-filter" data-col="nome" placeholder="Filtrar Nome...">
             </th>
             <th style="min-width:140px;">
-              <div class="proc-th-title">CPF <span class="proc-arrow">▼</span></div>
+              <div class="proc-th-title">CPF</div>
               <input type="text" class="proc-col-filter" data-col="cpf" placeholder="Filtrar CPF...">
             </th>
             <th style="min-width:250px;">
-              <div class="proc-th-title">LOCALIZAÇÃO <span class="proc-arrow">▼</span></div>
+              <div class="proc-th-title">
+                LOCALIZAÇÃO
+                <span class="proc-arrow proc-arrow-filterable" id="loc-filter-btn" title="Filtrar por Fazenda/Imóvel e Município">▼</span>
+              </div>
               <input type="text" class="proc-col-filter" data-col="localizacao" placeholder="Filtrar Imóvel/UF...">
             </th>
             <th style="min-width:220px;">
-              <div class="proc-th-title">ATIVIDADE ATUAL <span class="proc-arrow">▼</span></div>
+              <div class="proc-th-title">ATIVIDADE ATUAL</div>
               <input type="text" class="proc-col-filter" data-col="atividade" placeholder="Filtrar Atividade...">
             </th>
             <th style="min-width:130px;">
-              <div class="proc-th-title">ABERTURA <span class="proc-arrow">▼</span></div>
+              <div class="proc-th-title">ABERTURA</div>
               <input type="text" class="proc-col-filter" data-col="abertura" placeholder="dd/mm/aaaa">
             </th>
             <th style="min-width:150px;">
-              <div class="proc-th-title">CNPJ ATER <span class="proc-arrow">▼</span></div>
+              <div class="proc-th-title">CNPJ ATER</div>
               <input type="text" class="proc-col-filter" data-col="cnpj" placeholder="Filtrar CNPJ...">
             </th>
             <th id="th-etapa" style="min-width:150px; display:none;">
-              <div class="proc-th-title">LOCAL / ETAPA <span class="proc-arrow">▼</span></div>
+              <div class="proc-th-title">LOCAL / ETAPA</div>
               <input type="text" class="proc-col-filter" data-col="etapa" placeholder="Filtrar Etapa...">
             </th>
           </tr>
@@ -225,6 +228,42 @@
     </div>
   </div>
 
+</div>
+
+<!-- ================================================================= -->
+<!-- PAINEL DE FILTRO ESTILO EXCEL (FAZENDA/IMÓVEL + MUNICÍPIO)        -->
+<!-- ================================================================= -->
+<div id="proc-filter-dropdown" class="proc-filter-dropdown theme-light">
+  <div class="pfd-header">
+    <span class="pfd-title">🔍 Filtrar por Fazenda / Imóvel e Município</span>
+    <button type="button" class="pfd-close" id="pfd-close-btn" title="Fechar">✕</button>
+  </div>
+  <div class="pfd-body">
+    <div class="pfd-section">
+      <div class="pfd-section-title">🏡 FAZENDA / IMÓVEL</div>
+      <input type="text" class="pfd-search" id="pfd-search-imovel" placeholder="Pesquisar fazenda...">
+      <div class="pfd-quick-actions">
+        <button type="button" class="pfd-link-btn" id="pfd-check-all-imovel">Marcar todos</button>
+        <button type="button" class="pfd-link-btn" id="pfd-uncheck-all-imovel">Desmarcar todos</button>
+      </div>
+      <div class="pfd-list" id="pfd-list-imovel"></div>
+      <div class="pfd-count" id="pfd-count-imovel"></div>
+    </div>
+    <div class="pfd-section">
+      <div class="pfd-section-title">📍 MUNICÍPIO</div>
+      <input type="text" class="pfd-search" id="pfd-search-municipio" placeholder="Pesquisar município...">
+      <div class="pfd-quick-actions">
+        <button type="button" class="pfd-link-btn" id="pfd-check-all-municipio">Marcar todos</button>
+        <button type="button" class="pfd-link-btn" id="pfd-uncheck-all-municipio">Desmarcar todos</button>
+      </div>
+      <div class="pfd-list" id="pfd-list-municipio"></div>
+      <div class="pfd-count" id="pfd-count-municipio"></div>
+    </div>
+  </div>
+  <div class="pfd-footer">
+    <button type="button" class="pfd-btn pfd-btn-clear" id="pfd-btn-clear">Limpar Filtro</button>
+    <button type="button" class="pfd-btn pfd-btn-apply" id="pfd-btn-apply">Aplicar</button>
+  </div>
 </div>
 
 <div id="proc-toast" class="proc-toast" aria-live="polite"></div>
@@ -263,7 +302,7 @@
     color: var(--proc-text-main);
   }
 
-  /* VARIÁVEIS TEMA LIGHT (FRUTIGER AERO VIBE) */
+  /* VARIÁVEIS TEMA LIGHT (FRUTIGER AERO VIBE) - COM LINHAS VISÍVEIS */
   .proc-container.theme-light {
     --proc-font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     --proc-font-mono: 'JetBrains Mono', monospace;
@@ -274,11 +313,11 @@
     
     --proc-bg-page: #E8F4FA;
     --proc-surface: rgba(255, 255, 255, 0.75);
-    --proc-surface-card: rgba(255, 255, 255, 0.9);
-    --proc-surface-hover: rgba(255, 255, 255, 1);
+    --proc-surface-card: rgba(255, 255, 255, 0.95);
+    --proc-surface-hover: rgba(230, 244, 255, 0.85);
     
-    --proc-border: rgba(255, 255, 255, 0.6);
-    --proc-border-light: rgba(186, 230, 253, 0.6);
+    --proc-border: rgba(14, 165, 233, 0.35);       /* Bordas mais definidas */
+    --proc-border-light: rgba(14, 165, 233, 0.22);  /* Linhas entre linhas visíveis e limpas */
     
     --proc-text-main: #0C4A6E; /* Azul escuro bem contrastante */
     --proc-text-muted: #0284C7;
@@ -327,7 +366,6 @@
     transition: all 0.4s ease;
   }
 
-  /* AQUI A CORREÇÃO DE LEITURA E BELEZA DO MODO CLARO */
   .theme-light .proc-page-header {
     background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(220, 240, 255, 0.9) 100%);
     backdrop-filter: blur(10px);
@@ -438,7 +476,6 @@
     gap: 0.6rem;
   }
   
-  /* Garantindo que o badge seja legível no Frutiger Aero (Fix do Bug) */
   .theme-light .proc-badge {
     background: rgba(255, 255, 255, 0.85);
     border: 1px solid #7DD3FC;
@@ -471,7 +508,7 @@
     box-shadow: var(--proc-shadow-card);
     margin-bottom: 1.25rem;
     overflow: hidden;
-    backdrop-filter: blur(12px); /* Glassmorphism extra para Light mode */
+    backdrop-filter: blur(12px);
   }
 
   /* --- SELETOR DE ETAPAS --- */
@@ -791,6 +828,12 @@
     display: inline-block;
   }
 
+  .theme-light .proc-link {
+    color: #0284C7;
+    background: rgba(14, 165, 233, 0.12);
+    border: 1px solid rgba(14, 165, 233, 0.3);
+  }
+
   .proc-link:hover {
     background: var(--proc-accent-main);
     color: #FFFFFF;
@@ -892,12 +935,333 @@
     font-weight: 500;
   }
 
-  /* RESPONSIVIDADE */
   @media (max-width: 768px) {
     .proc-stage-bar { flex-direction: column; }
     .proc-filters-grid { flex-direction: column; align-items: stretch; }
     .proc-page-header { flex-direction: column; align-items: flex-start; }
   }
+
+  /* Container do Cabeçalho com Botão de Filtro */
+.th-filter-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  position: relative;
+}
+
+/* Botão da Setinha no Cabeçalho */
+.btn-excel-filter {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: currentColor;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.btn-excel-filter:hover,
+.btn-excel-filter.active-filter {
+  background-color: rgba(0, 123, 255, 0.15);
+  color: #007bff;
+}
+
+/* Menu Popover Estilo Excel */
+.excel-popover {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1050;
+  width: 240px;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 10px;
+  font-size: 0.85rem;
+  color: #333333;
+  text-align: left;
+}
+
+.excel-popover.show {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.excel-search-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #cccccc;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  box-sizing: border-box;
+}
+
+.excel-options-list {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background-color: #f9fafb;
+}
+
+.excel-option-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: normal;
+  word-break: break-word;
+}
+
+.excel-option-item input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.excel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.excel-btn {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.excel-btn-primary {
+  background-color: #007bff;
+  color: #ffffff;
+}
+
+.excel-btn-primary:hover {
+  background-color: #0056b3;
+}
+
+.excel-btn-secondary {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.excel-btn-secondary:hover {
+  background-color: #d1d5db;
+}
+
+/* ================================================================
+   FILTRO ESTILO EXCEL — FAZENDA/IMÓVEL e MUNICÍPIO
+   ================================================================ */
+.proc-arrow-filterable {
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+.proc-arrow-filterable:hover {
+  background: var(--proc-surface-hover);
+  color: var(--proc-accent-main);
+}
+.proc-arrow-filterable.pfd-active {
+  color: var(--proc-accent-main);
+  font-weight: 900;
+}
+
+.proc-filter-dropdown {
+  position: fixed;
+  z-index: 9999;
+  width: 560px;
+  max-width: 94vw;
+  background: var(--proc-modal-solid, #ffffff);
+  border: 1px solid var(--proc-border);
+  border-radius: 12px;
+  box-shadow: 0 18px 45px rgba(0,0,0,0.35);
+  font-family: var(--proc-font-sans);
+  overflow: hidden;
+  display: none;
+  color: var(--proc-text-main);
+}
+.proc-filter-dropdown.theme-dark { --proc-modal-solid: #1c1c1c; }
+.proc-filter-dropdown.theme-light { --proc-modal-solid: #ffffff; }
+
+.pfd-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  background: var(--proc-modal-solid, #ffffff);
+  border-bottom: 1px solid var(--proc-border);
+}
+.pfd-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.pfd-close {
+  background: transparent;
+  border: none;
+  color: var(--proc-text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.pfd-close:hover {
+  background: var(--proc-surface-hover);
+  color: var(--proc-accent-main);
+}
+
+.pfd-body {
+  display: flex;
+  gap: 0;
+  max-height: 420px;
+}
+.pfd-section {
+  flex: 1 1 50%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0.85rem;
+}
+.pfd-section + .pfd-section {
+  border-left: 1px solid var(--proc-border-light);
+}
+.pfd-section-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--proc-text-muted);
+  margin-bottom: 0.5rem;
+}
+.pfd-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.6rem;
+  border-radius: 7px;
+  border: 1px solid var(--proc-border);
+  background: var(--proc-bg-page);
+  color: var(--proc-text-main);
+  font-size: 0.8rem;
+  font-family: var(--proc-font-sans);
+  margin-bottom: 0.5rem;
+}
+.pfd-search:focus {
+  outline: none;
+  border-color: var(--proc-accent-main);
+}
+.pfd-quick-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+.pfd-link-btn {
+  background: transparent;
+  border: none;
+  color: var(--proc-accent-main);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.pfd-link-btn:hover {
+  text-decoration: underline;
+}
+.pfd-list {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--proc-border-light);
+  border-radius: 8px;
+  padding: 0.3rem 0.2rem;
+  background: var(--proc-bg-page);
+  min-height: 180px;
+  max-height: 260px;
+}
+.pfd-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.32rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.pfd-item:hover {
+  background: var(--proc-surface-hover);
+}
+.pfd-item input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--proc-accent-main);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.pfd-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pfd-empty {
+  padding: 0.8rem;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--proc-text-light);
+}
+.pfd-count {
+  font-size: 0.7rem;
+  color: var(--proc-text-light);
+  margin-top: 0.4rem;
+}
+
+.pfd-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--proc-border);
+  background: var(--proc-modal-solid, #ffffff);
+}
+.pfd-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--proc-border);
+  font-family: var(--proc-font-sans);
+}
+.pfd-btn-clear {
+  background: transparent;
+  color: var(--proc-text-muted);
+}
+.pfd-btn-clear:hover {
+  background: var(--proc-surface-hover);
+}
+.pfd-btn-apply {
+  background: var(--proc-accent-main);
+  color: #fff;
+  border-color: var(--proc-accent-main);
+}
+.pfd-btn-apply:hover {
+  filter: brightness(1.08);
+}
+
+@media (max-width: 640px) {
+  .pfd-body { flex-direction: column; max-height: 60vh; }
+  .pfd-section + .pfd-section { border-left: none; border-top: 1px solid var(--proc-border-light); }
+}
+
 </style>
 
 <!-- ================================================================= -->
@@ -996,6 +1360,10 @@
     let chartInstance = null; 
     let memoryCache = {};
 
+    /* ── Estado do Filtro Excel-style (Fazenda/Imóvel e Município) ── */
+    let activeImovelFilter = null;     
+    let activeMunicipioFilter = null;  
+
     /* ── DOM Elements ── */
     const appRoot = document.getElementById('proc-app-root');
     const btnToggleTheme = document.getElementById('btn-toggle-theme');
@@ -1036,12 +1404,16 @@
       if (appRoot.classList.contains('theme-dark')) {
         appRoot.classList.remove('theme-dark');
         appRoot.classList.add('theme-light');
+        pfdPanel.classList.remove('theme-dark');
+        pfdPanel.classList.add('theme-light');
         themeBtnText.textContent = 'Modo Escuro';
         document.querySelector('.theme-icon').textContent = '🌙';
         showToast('Modo Claro ativado com sucesso.', 'info');
       } else {
         appRoot.classList.remove('theme-light');
         appRoot.classList.add('theme-dark');
+        pfdPanel.classList.remove('theme-light');
+        pfdPanel.classList.add('theme-dark');
         themeBtnText.textContent = 'Modo Claro';
         document.querySelector('.theme-icon').textContent = '🔆';
         showToast('Modo Black ativado.', 'info');
@@ -1142,6 +1514,12 @@
       btnChart.disabled = true;
 
       colFilters.forEach(input => input.value = '');
+      activeImovelFilter = null;
+      activeMunicipioFilter = null;
+      if (typeof locFilterBtn !== 'undefined' && locFilterBtn) {
+        locFilterBtn.classList.remove('pfd-active');
+        locFilterBtn.textContent = '▼';
+      }
 
       let baseDataToFilter = null;
       
@@ -1484,16 +1862,16 @@
       const ctx = document.getElementById('proc-chart-canvas').getContext('2d');
 
       const gradientColors = [
-        ['#F59E0B', '#D97706'], // Amarelo/Dourado
-        ['#10B981', '#059669'], // Verde Esmeralda
-        ['#8B5CF6', '#6D28D9'], // Roxo
-        ['#EC4899', '#BE185D'], // Rosa/Pink
-        ['#F97316', '#C2410C'], // Laranja
-        ['#06B6D4', '#0E7490'], // Ciano/Turquesa
-        ['#EF4444', '#B91C1C'], // Vermelho
-        ['#84CC16', '#4D7C0F'], // Verde Lima
-        ['#6366F1', '#4338CA'], // Índigo
-        ['#3B82F6', '#1D4ED8']  // Azul elétrico
+        ['#F59E0B', '#D97706'], 
+        ['#10B981', '#059669'], 
+        ['#8B5CF6', '#6D28D9'], 
+        ['#EC4899', '#BE185D'], 
+        ['#F97316', '#C2410C'], 
+        ['#06B6D4', '#0E7490'], 
+        ['#EF4444', '#B91C1C'], 
+        ['#84CC16', '#4D7C0F'], 
+        ['#6366F1', '#4338CA'], 
+        ['#3B82F6', '#1D4ED8']  
       ];
 
       let datasets = [];
@@ -1612,6 +1990,14 @@
 
       let filtered = [...rawData];
 
+      if (activeImovelFilter) {
+        filtered = filtered.filter(row => activeImovelFilter.has(row.imovel_resolvido || 'Não informado'));
+      }
+
+      if (activeMunicipioFilter) {
+        filtered = filtered.filter(row => activeMunicipioFilter.has(row.municipio_resolvido || 'Não informado'));
+      }
+
       colFilters.forEach(input => {
         const term = input.value.toLowerCase().trim();
         const col = input.dataset.col;
@@ -1645,6 +2031,178 @@
       });
     });
 
+    /* ================================================================
+       PAINEL DE FILTRO ESTILO EXCEL — FAZENDA/IMÓVEL e MUNICÍPIO
+       ================================================================ */
+    const locFilterBtn = document.getElementById('loc-filter-btn');
+    const pfdPanel = document.getElementById('proc-filter-dropdown');
+    const pfdCloseBtn = document.getElementById('pfd-close-btn');
+    const pfdBtnApply = document.getElementById('pfd-btn-apply');
+    const pfdBtnClear = document.getElementById('pfd-btn-clear');
+
+    const pfdListImovel = document.getElementById('pfd-list-imovel');
+    const pfdListMunicipio = document.getElementById('pfd-list-municipio');
+    const pfdSearchImovel = document.getElementById('pfd-search-imovel');
+    const pfdSearchMunicipio = document.getElementById('pfd-search-municipio');
+    const pfdCountImovel = document.getElementById('pfd-count-imovel');
+    const pfdCountMunicipio = document.getElementById('pfd-count-municipio');
+    const pfdCheckAllImovel = document.getElementById('pfd-check-all-imovel');
+    const pfdUncheckAllImovel = document.getElementById('pfd-uncheck-all-imovel');
+    const pfdCheckAllMunicipio = document.getElementById('pfd-check-all-municipio');
+    const pfdUncheckAllMunicipio = document.getElementById('pfd-uncheck-all-municipio');
+
+    let tempImovelChecked = new Set();
+    let tempMunicipioChecked = new Set();
+    let allImovelValues = [];
+    let allMunicipioValues = [];
+
+    function getUniqueSortedValues(field, fallback) {
+  // Alterar para usar rawData em vez de memoryCache['GERAL_TODOS']
+  const base = rawData || [];
+  const set = new Set();
+  base.forEach(row => {
+    const val = row[field] || fallback;
+    if (val) set.add(val);
+  });
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+
+    function buildChecklist(listEl, values, checkedSet, searchTerm) {
+      listEl.innerHTML = '';
+      const term = (searchTerm || '').toLowerCase().trim();
+      const filteredValues = term
+        ? values.filter(v => v.toLowerCase().includes(term))
+        : values;
+
+      if (filteredValues.length === 0) {
+        listEl.innerHTML = `<div class="pfd-empty">Nenhum valor encontrado.</div>`;
+        return;
+      }
+
+      const frag = document.createDocumentFragment();
+      filteredValues.forEach(val => {
+        const label = document.createElement('label');
+        label.className = 'pfd-item';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = checkedSet.has(val);
+        checkbox.addEventListener('change', () => {
+          if (checkbox.checked) checkedSet.add(val);
+          else checkedSet.delete(val);
+        });
+
+        const span = document.createElement('span');
+        span.textContent = val;
+        span.title = val;
+
+        label.appendChild(checkbox);
+        label.appendChild(span);
+        frag.appendChild(label);
+      });
+      listEl.appendChild(frag);
+    }
+
+    function refreshImovelList() {
+      buildChecklist(pfdListImovel, allImovelValues, tempImovelChecked, pfdSearchImovel.value);
+      pfdCountImovel.textContent = `${tempImovelChecked.size} de ${allImovelValues.length} selecionadas`;
+    }
+
+    function refreshMunicipioList() {
+      buildChecklist(pfdListMunicipio, allMunicipioValues, tempMunicipioChecked, pfdSearchMunicipio.value);
+      pfdCountMunicipio.textContent = `${tempMunicipioChecked.size} de ${allMunicipioValues.length} selecionados`;
+    }
+
+    function openFilterDropdown() {
+      allImovelValues = getUniqueSortedValues('imovel_resolvido', 'Não informado');
+      allMunicipioValues = getUniqueSortedValues('municipio_resolvido', 'Não informado');
+
+      tempImovelChecked = activeImovelFilter ? new Set(activeImovelFilter) : new Set(allImovelValues);
+      tempMunicipioChecked = activeMunicipioFilter ? new Set(activeMunicipioFilter) : new Set(allMunicipioValues);
+
+      pfdSearchImovel.value = '';
+      pfdSearchMunicipio.value = '';
+      refreshImovelList();
+      refreshMunicipioList();
+
+      const rect = locFilterBtn.getBoundingClientRect();
+      const panelWidth = pfdPanel.offsetWidth || 560;
+      let left = rect.left;
+      if (left + panelWidth > window.innerWidth - 12) {
+        left = Math.max(12, window.innerWidth - panelWidth - 12);
+      }
+      let top = rect.bottom + 6;
+      pfdPanel.style.left = `${left}px`;
+      pfdPanel.style.top = `${top}px`;
+      pfdPanel.style.display = 'block';
+    }
+
+    function closeFilterDropdown() {
+      pfdPanel.style.display = 'none';
+    }
+
+    if (locFilterBtn) {
+      locFilterBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (pfdPanel.style.display === 'block') {
+          closeFilterDropdown();
+        } else {
+          openFilterDropdown();
+        }
+      });
+    }
+
+    if (pfdCloseBtn) pfdCloseBtn.addEventListener('click', closeFilterDropdown);
+
+    document.addEventListener('click', (e) => {
+      if (pfdPanel.style.display !== 'block') return;
+      if (pfdPanel.contains(e.target) || e.target === locFilterBtn) return;
+      closeFilterDropdown();
+    });
+
+    pfdPanel.addEventListener('click', (e) => e.stopPropagation());
+
+    pfdSearchImovel.addEventListener('input', refreshImovelList);
+    pfdSearchMunicipio.addEventListener('input', refreshMunicipioList);
+
+    pfdCheckAllImovel.addEventListener('click', () => {
+      allImovelValues.forEach(v => tempImovelChecked.add(v));
+      refreshImovelList();
+    });
+    pfdUncheckAllImovel.addEventListener('click', () => {
+      tempImovelChecked.clear();
+      refreshImovelList();
+    });
+    pfdCheckAllMunicipio.addEventListener('click', () => {
+      allMunicipioValues.forEach(v => tempMunicipioChecked.add(v));
+      refreshMunicipioList();
+    });
+    pfdUncheckAllMunicipio.addEventListener('click', () => {
+      tempMunicipioChecked.clear();
+      refreshMunicipioList();
+    });
+
+    pfdBtnApply.addEventListener('click', () => {
+      activeImovelFilter = (tempImovelChecked.size === allImovelValues.length) ? null : new Set(tempImovelChecked);
+      activeMunicipioFilter = (tempMunicipioChecked.size === allMunicipioValues.length) ? null : new Set(tempMunicipioChecked);
+
+      const hasActiveFilter = !!activeImovelFilter || !!activeMunicipioFilter;
+      locFilterBtn.classList.toggle('pfd-active', hasActiveFilter);
+      locFilterBtn.textContent = hasActiveFilter ? '⏷' : '▼';
+
+      applyColumnFilters();
+      closeFilterDropdown();
+    });
+
+    pfdBtnClear.addEventListener('click', () => {
+      activeImovelFilter = null;
+      activeMunicipioFilter = null;
+      locFilterBtn.classList.remove('pfd-active');
+      locFilterBtn.textContent = '▼';
+      applyColumnFilters();
+      closeFilterDropdown();
+    });
+
     btnPageFirst.addEventListener('click', () => { currentPageNum = 1; renderPage(); });
     btnPagePrev.addEventListener('click', () => { currentPageNum -= 1; renderPage(); });
     btnPageNext.addEventListener('click', () => { currentPageNum += 1; renderPage(); });
@@ -1652,31 +2210,30 @@
     selPageSize.addEventListener('change', () => { pageSize = parseInt(selPageSize.value, 10) || 50; currentPageNum = 1; renderPage(); });
 
     function updateSelectedCount() {
-    const checkboxes = document.querySelectorAll('.proc-chk-row');
-    
-    // Atualiza a classe de destaque da linha de cada checkbox
-    checkboxes.forEach(cb => {
-      const tr = cb.closest('tr');
-      if (tr) {
-        if (cb.checked) {
-          tr.classList.add('proc-row-selected');
-        } else {
-          tr.classList.remove('proc-row-selected');
+      const checkboxes = document.querySelectorAll('.proc-chk-row');
+      
+      checkboxes.forEach(cb => {
+        const tr = cb.closest('tr');
+        if (tr) {
+          if (cb.checked) {
+            tr.classList.add('proc-row-selected');
+          } else {
+            tr.classList.remove('proc-row-selected');
+          }
         }
+      });
+
+      const checked = document.querySelectorAll('.proc-chk-row:checked');
+      const count = checked.length;
+      countSelectedSpan.textContent = count;
+      btnOpenSelected.style.display = count > 0 ? 'inline-flex' : 'none';
+
+      if (checkboxes.length > 0 && checkboxes.length === count) {
+        chkSelectAll.checked = true;
+      } else {
+        chkSelectAll.checked = false;
       }
-    });
-
-    const checked = document.querySelectorAll('.proc-chk-row:checked');
-    const count = checked.length;
-    countSelectedSpan.textContent = count;
-    btnOpenSelected.style.display = count > 0 ? 'inline-flex' : 'none';
-
-    if (checkboxes.length > 0 && checkboxes.length === count) {
-      chkSelectAll.checked = true;
-    } else {
-      chkSelectAll.checked = false;
     }
-  }
 
     chkSelectAll.addEventListener('change', (e) => {
       const checkboxes = document.querySelectorAll('.proc-chk-row');
