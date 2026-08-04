@@ -188,40 +188,326 @@
       .card { width: 100%; max-width: 320px; height: 350px; }
       .card-desc { opacity: 1; transform: none; } /* Sempre visível no mobile */
     }
+
+    /* ===================== TELA DE LOGIN ===================== */
+    #login-screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--bg-color);
+      background-image: radial-gradient(circle at top, #1e293b 0%, transparent 40%);
+      z-index: 100;
+      padding: 1rem;
+    }
+
+    .login-box {
+      width: 100%;
+      max-width: 380px;
+      background: var(--card-bg);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      box-shadow: 0 10px 30px -10px rgba(0,0,0,0.6);
+      text-align: center;
+      animation: fadeUp 0.6s ease-out forwards;
+    }
+
+    .login-box .login-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .login-box h2 {
+      margin: 0 0 0.25rem 0;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .login-box p.login-sub {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin: 0 0 1.75rem 0;
+    }
+
+    .login-field {
+      text-align: left;
+      margin-bottom: 1.1rem;
+    }
+
+    .login-field label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .login-field input {
+      width: 100%;
+      box-sizing: border-box;
+      background: #0F172A;
+      border: 1.5px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 0.75rem 0.9rem;
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.95rem;
+      transition: var(--transition);
+    }
+
+    .login-field input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    #login-btn {
+      width: 100%;
+      padding: 0.85rem;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--primary) 0%, #2563EB 100%);
+      color: #fff;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: var(--transition);
+      margin-top: 0.4rem;
+    }
+
+    #login-btn:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    #login-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #login-error {
+      color: #F87171;
+      font-size: 0.85rem;
+      margin-top: 1rem;
+      min-height: 1.2em;
+      display: none;
+    }
+
+    #login-error.show { display: block; }
+
+    #portal-content {
+      display: none;
+    }
+
+    #portal-content.show {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .logout-btn {
+      position: fixed;
+      top: 1.25rem;
+      right: 1.25rem;
+      background: var(--card-bg);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--text-muted);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      z-index: 20;
+      transition: var(--transition);
+    }
+
+    .logout-btn:hover {
+      color: var(--text-main);
+      border-color: rgba(255,255,255,0.2);
+    }
   </style>
 </head>
 <body>
 
-  <div class="hero-container">
-    <div class="animate-fade-down">
-      <h1>Portal de Sistemas PNCF</h1>
-      <p class="subtitle">O que você deseja acessar?</p>
-    </div>
+  <!-- ===================== TELA DE LOGIN ===================== -->
+  <div id="login-screen">
+    <div class="login-box">
+      <div class="login-icon">🔒</div>
+      <h2>Portal PNCF</h2>
+      <p class="login-sub">Entre com seu e-mail (ou nome) e senha</p>
 
-    <div class="cards-grid animate-fade-up">
-      
-      <!-- CARD 1: MINUTA DE OFÍCIO -->
-      <!-- ATENÇÃO: Altere o href para o nome correto do seu arquivo da Minuta -->
-      <a href="minuta.html" class="card minuta">
-        <div class="card-content">
-          <div class="card-icon">📝</div>
-          <div class="card-title">Minuta de Ofício</div>
-          <div class="card-desc">Consulte dados PNCF e gere modelos padronizados com padrão para utilizar no SEI.</div>
-        </div>
-      </a>
+      <div class="login-field">
+        <label for="login-user">Nome ou e-mail</label>
+        <input type="text" id="login-user" autocomplete="username" placeholder="seu.nome@mda.gov.br">
+      </div>
 
-      <!-- CARD 2: VISUALIZADOR DE PROCESSOS -->
-      <!-- ATENÇÃO: Altere o href para o nome correto do seu arquivo do Visualizador -->
-      <a href="visualizador.html" class="card visualizador">
-        <div class="card-content">
-          <div class="card-icon">📊</div>
-          <div class="card-title">Visualizador de Processos</div>
-          <div class="card-desc">Consulte e analise os processos em andamento por etapa, UF e atividade atual no painel analítico.</div>
-        </div>
-      </a>
+      <div class="login-field">
+        <label for="login-pass">Senha</label>
+        <input type="password" id="login-pass" autocomplete="current-password" placeholder="••••••">
+      </div>
 
+      <button id="login-btn">Entrar</button>
+      <div id="login-error"></div>
     </div>
   </div>
 
+  <!-- ===================== CONTEÚDO DO PORTAL ===================== -->
+  <button class="logout-btn" id="logout-btn" style="display:none;">Sair</button>
+
+  <div id="portal-content">
+    <div class="hero-container">
+      <div class="animate-fade-down">
+        <h1>Portal de Sistemas PNCF</h1>
+        <p class="subtitle" id="welcome-text">O que você deseja acessar?</p>
+      </div>
+
+      <div class="cards-grid animate-fade-up">
+
+        <!-- CARD 1: MINUTA DE OFÍCIO -->
+        <a href="minuta.html" class="card minuta">
+          <div class="card-content">
+            <div class="card-icon">📝</div>
+            <div class="card-title">Minuta de Ofício</div>
+            <div class="card-desc">Consulte dados PNCF e gere modelos padronizados com padrão para utilizar no SEI.</div>
+          </div>
+        </a>
+
+        <!-- CARD 2: VISUALIZADOR DE PROCESSOS -->
+        <a href="visualizador.html" class="card visualizador">
+          <div class="card-content">
+            <div class="card-icon">📊</div>
+            <div class="card-title">Visualizador de Processos</div>
+            <div class="card-desc">Consulte e analise os processos em andamento por etapa, UF e atividade atual no painel analítico.</div>
+          </div>
+        </a>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // ===================== CONFIG SUPABASE =====================
+    const SUPABASE_URL = 'https://bvdphvczpvzhjdaylybm.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2ZHBodmN6cHZ6aGpkYXlseWJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MTA5NDYsImV4cCI6MjA4NzA4Njk0Nn0.pBbSwWxyY_DGH66q9xeKAd6W2ySdltz8fQHdP9TFgwo';
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const TABELA_ANALISTA = 'Analista';
+    const SESSION_KEY = 'pncf_analista_session';
+
+    // ===================== ELEMENTOS =====================
+    const loginScreen = document.getElementById('login-screen');
+    const portalContent = document.getElementById('portal-content');
+    const logoutBtn = document.getElementById('logout-btn');
+    const welcomeText = document.getElementById('welcome-text');
+
+    const inputUser = document.getElementById('login-user');
+    const inputPass = document.getElementById('login-pass');
+    const loginBtn = document.getElementById('login-btn');
+    const loginError = document.getElementById('login-error');
+
+    function showError(msg) {
+      loginError.textContent = msg;
+      loginError.classList.add('show');
+    }
+
+    function clearError() {
+      loginError.textContent = '';
+      loginError.classList.remove('show');
+    }
+
+    function showPortal(analista) {
+      loginScreen.style.display = 'none';
+      portalContent.classList.add('show');
+      logoutBtn.style.display = 'block';
+      welcomeText.textContent = `Bem-vindo(a), ${analista.nome}. O que você deseja acessar?`;
+    }
+
+    function showLogin() {
+      loginScreen.style.display = 'flex';
+      portalContent.classList.remove('show');
+      logoutBtn.style.display = 'none';
+      inputPass.value = '';
+    }
+
+    async function fazerLogin() {
+      clearError();
+      const user = inputUser.value.trim();
+      const pass = inputPass.value;
+
+      if (!user || !pass) {
+        showError('Preencha usuário e senha.');
+        return;
+      }
+
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Entrando...';
+
+      try {
+        const { data, error } = await sb
+          .from(TABELA_ANALISTA)
+          .select('*')
+          .or(`email.ilike.${user},nome.ilike.${user}`)
+          .eq('senha', pass)
+          .eq('ativo', 1)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Erro Supabase:', error);
+          showError('Erro ao consultar o servidor. Tente novamente.');
+          return;
+        }
+
+        if (!data) {
+          showError('Usuário ou senha inválidos.');
+          return;
+        }
+
+        // Salva sessão (dura enquanto a aba estiver aberta)
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+          id: data.id,
+          nome: data.nome,
+          email: data.email
+        }));
+
+        showPortal(data);
+      } catch (err) {
+        console.error(err);
+        showError('Erro inesperado. Tente novamente.');
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Entrar';
+      }
+    }
+
+    loginBtn.addEventListener('click', fazerLogin);
+    inputPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') fazerLogin(); });
+    inputUser.addEventListener('keydown', (e) => { if (e.key === 'Enter') inputPass.focus(); });
+
+    logoutBtn.addEventListener('click', () => {
+      sessionStorage.removeItem(SESSION_KEY);
+      showLogin();
+    });
+
+    // ===================== VERIFICA SESSÃO AO CARREGAR =====================
+    (function checkSession() {
+      const saved = sessionStorage.getItem(SESSION_KEY);
+      if (saved) {
+        try {
+          const analista = JSON.parse(saved);
+          showPortal(analista);
+        } catch {
+          showLogin();
+        }
+      } else {
+        showLogin();
+      }
+    })();
+  </script>
 </body>
 </html>

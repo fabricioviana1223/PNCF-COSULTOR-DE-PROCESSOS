@@ -1,10 +1,10 @@
+<!-- Bibliotecas externas: Chart.js e SheetJS (Excel) -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
 
 <div id="proc-app-root" class="proc-container theme-light animate-fade-in">
 
+  <!-- CABEÇALHO -->
   <div class="proc-page-header">
     <div class="proc-header-text">
       <div class="proc-title-wrapper">
@@ -15,6 +15,7 @@
     </div>
     
     <div class="proc-header-actions">
+      <!-- BOTÃO DE TROCA DE TEMA (DARK / LIGHT) -->
       <button id="btn-toggle-theme" class="proc-theme-btn" title="Alternar entre Modo Black e Modo Claro">
         <span class="theme-icon">🌙</span>
         <span id="theme-btn-text">Modo Escuro</span>
@@ -27,6 +28,7 @@
     </div>
   </div>
 
+  <!-- SELETOR DE ETAPAS -->
   <div class="proc-card proc-stage-bar">
     <button class="proc-stage-btn" data-stage="ESTADUAL">
       <span class="proc-stage-icon">🏛️</span>
@@ -40,12 +42,14 @@
       <span class="proc-stage-icon">💰</span>
       <span>Etapa Financeira</span>
     </button>
+    <!-- GERAL ativo por padrão -->
     <button class="proc-stage-btn active" data-stage="GERAL">
       <span class="proc-stage-icon">🌍</span>
       <span>Visão Geral</span>
     </button>
   </div>
 
+  <!-- PAINEL DE FILTROS -->
   <div class="proc-card proc-filters-panel">
     <div class="proc-filters-grid">
       
@@ -88,6 +92,7 @@
             <span>Atualizar Banco</span>
           </button>
 
+          <!-- BOTÃO DE EXPORTAR PARA EXCEL -->
           <button id="btn-export-excel" class="proc-btn proc-btn-excel" title="Exportar dados visíveis para uma planilha Excel">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -117,6 +122,7 @@
     </div>
   </div>
 
+  <!-- ESTADO VAZIO -->
   <div id="proc-empty-state" class="proc-empty-state">
     <div class="proc-empty-icon-box">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -128,6 +134,7 @@
     <div class="proc-empty-desc">Ajuste os filtros se necessário e clique em <strong>Atualizar Banco</strong>.</div>
   </div>
 
+  <!-- LOADER ANIMADO -->
   <div id="proc-loader" class="proc-loader-wrapper" style="display:none;">
     <div class="proc-spinner">
       <div></div><div></div><div></div>
@@ -135,40 +142,24 @@
     <span class="proc-loader-text">Conectando ao banco de dados e consultando registros...</span>
   </div>
 
+  <!-- CONTAINER DE GRÁFICO -->
   <div id="proc-chart-wrapper" class="proc-card proc-chart-card animate-fade-in" style="display:none;">
-    <div class="proc-chart-header" style="flex-wrap: wrap; gap: 1rem;">
-      <div class="proc-chart-title-box" style="display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;">
-        <div style="display: flex; align-items: center; gap: 0.75rem;">
-          <span class="proc-chart-icon" style="font-size: 1.8rem;">📈</span>
-          <div>
-            <h3 class="proc-chart-title" style="font-size: 1.25rem;">Resumo Analítico</h3>
-            <p class="proc-chart-sub">Distribuição visual dos processos por estado e atividade atual</p>
-          </div>
-        </div>
-        
-        <div style="background: linear-gradient(135deg, var(--proc-accent-main), var(--proc-accent-dark)); color: #FFF; padding: 0.6rem 1.4rem; border-radius: 12px; font-weight: 800; display: flex; align-items: center; gap: 0.6rem; box-shadow: 0 4px 15px var(--proc-accent-glow); border: 1px solid rgba(255,255,255,0.2);">
-          <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9;">Total de Processos</span>
-          <span id="proc-chart-total-count" style="font-size: 1.6rem; line-height: 1;">0</span>
+    <div class="proc-chart-header">
+      <div class="proc-chart-title-box">
+        <span class="proc-chart-icon">📈</span>
+        <div>
+          <h3 class="proc-chart-title">Resumo Analítico por Atividade</h3>
+          <p class="proc-chart-sub">Distribuição visual dos processos por estado e atividade atual</p>
         </div>
       </div>
-      <div class="proc-chart-actions" style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
-        <select id="sel-chart-type" class="proc-input" style="height: 34px; padding: 0 10px; width: auto; font-size: 0.8rem; border-radius: 6px;">
-          <option value="bar">Gráfico de Barras</option>
-          <option value="line">Gráfico de Linhas</option>
-          <option value="pie">Gráfico de Pizza</option>
-          <option value="doughnut">Gráfico de Rosca</option>
-        </select>
-        <button id="btn-export-pdf" class="proc-btn proc-btn-secondary" style="height: 34px; padding: 0 12px; font-size: 0.8rem; border-radius: 6px;" title="Exportar Gráfico para PDF">
-          📄 Exportar PDF
-        </button>
-        <button id="btn-close-chart" type="button" class="proc-btn-close">✕</button>
-      </div>
+      <button id="btn-close-chart" type="button" class="proc-btn-close">✕</button>
     </div>
     <div class="proc-chart-canvas-container">
       <canvas id="proc-chart-canvas"></canvas>
     </div>
   </div>
 
+  <!-- TABELA PRINCIPAL DE DADOS -->
   <div id="proc-table-wrapper" class="proc-card proc-table-card" style="display:none;">
     <div class="proc-table-scroll">
       <table class="proc-table">
@@ -239,6 +230,9 @@
 
 </div>
 
+<!-- ================================================================= -->
+<!-- PAINEL DE FILTRO ESTILO EXCEL (FAZENDA/IMÓVEL + MUNICÍPIO)        -->
+<!-- ================================================================= -->
 <div id="proc-filter-dropdown" class="proc-filter-dropdown theme-light">
   <div class="pfd-header">
     <span class="pfd-title">🔍 Filtrar por Fazenda / Imóvel e Município</span>
@@ -268,12 +262,15 @@
   </div>
   <div class="pfd-footer">
     <button type="button" class="pfd-btn pfd-btn-clear" id="pfd-btn-clear">Limpar Filtro</button>
-    <button type="button" class="pfd-btn pfd-btn-apply" id="pfd-btn-apply">Aplicar</button>
+    <button type="button" class="pfd-btn pfd-btn-apply" id="pfd-btn-apply">Fechar</button>
   </div>
 </div>
 
 <div id="proc-toast" class="proc-toast" aria-live="polite"></div>
 
+<!-- ================================================================= -->
+<!-- ESTILOS CSS - TEMA DARK E LIGHT (FRUTIGER AERO)                   -->
+<!-- ================================================================= -->
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
 
@@ -282,7 +279,7 @@
     --proc-font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     --proc-font-mono: 'JetBrains Mono', monospace;
     
-    --proc-accent-main: #E50914; 
+    --proc-accent-main: #E50914; /* Mantido o tom vermelho vivo para o dark */
     --proc-accent-glow: rgba(229, 9, 20, 0.4);
     --proc-accent-dark: #B81D24;
     
@@ -305,12 +302,12 @@
     color: var(--proc-text-main);
   }
 
-  /* VARIÁVEIS TEMA LIGHT (FRUTIGER AERO VIBE) */
+  /* VARIÁVEIS TEMA LIGHT (FRUTIGER AERO VIBE) - COM LINHAS VISÍVEIS */
   .proc-container.theme-light {
     --proc-font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     --proc-font-mono: 'JetBrains Mono', monospace;
     
-    --proc-accent-main: #00A8FF; 
+    --proc-accent-main: #00A8FF; /* Azul Frutiger brilhante */
     --proc-accent-glow: rgba(0, 168, 255, 0.4);
     --proc-accent-dark: #0082C8;
     
@@ -319,10 +316,10 @@
     --proc-surface-card: rgba(255, 255, 255, 0.95);
     --proc-surface-hover: rgba(230, 244, 255, 0.85);
     
-    --proc-border: rgba(14, 165, 233, 0.35);       
-    --proc-border-light: rgba(14, 165, 233, 0.22);  
+    --proc-border: rgba(14, 165, 233, 0.35);       /* Bordas mais definidas */
+    --proc-border-light: rgba(14, 165, 233, 0.22);  /* Linhas entre linhas visíveis e limpas */
     
-    --proc-text-main: #0C4A6E; 
+    --proc-text-main: #0C4A6E; /* Azul escuro bem contrastante */
     --proc-text-muted: #0284C7;
     --proc-text-light: #38BDF8;
     
@@ -1267,6 +1264,9 @@
 
 </style>
 
+<!-- ================================================================= -->
+<!-- SCRIPT LÓGICO COMPLETO COM SUPABASE, FILTROS E EXPORTAÇÃO EXCEL  -->
+<!-- ================================================================= -->
 <script>
   (function() {
     'use strict';
@@ -1836,24 +1836,9 @@
     }
 
     /* ================================================================
-       GERAÇÃO DO GRÁFICO & EXPORTAÇÃO PDF
+       GERAÇÃO DO GRÁFICO
        ================================================================ */
     const btnCloseChart = document.getElementById('btn-close-chart');
-    const selChartType = document.getElementById('sel-chart-type');
-    const btnExportPdf = document.getElementById('btn-export-pdf');
-
-    // Plugin local para garantir que o fundo do canvas não fique transparente na exportação do PDF
-    const customCanvasBgPlugin = {
-      id: 'customCanvasBackgroundColor',
-      beforeDraw: (chart, args, options) => {
-        const {ctx} = chart;
-        ctx.save();
-        ctx.globalCompositeOperation = 'destination-over';
-        ctx.fillStyle = options.color || '#ffffff';
-        ctx.fillRect(0, 0, chart.width, chart.height);
-        ctx.restore();
-      }
-    };
 
     function formatLabel(str) {
       return str.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
@@ -1864,59 +1849,40 @@
         hideChart();
         return;
       }
+
       if (!rawData || rawData.length === 0) {
         showToast('Nenhum dado disponível para gerar o gráfico.', 'warning');
         return;
       }
-      chartWrapper.style.display = 'block';
-      btnChart.innerHTML = '📊 Ocultar Gráfico';
-      renderChart();
-      chartWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
 
-    function renderChart() {
-      if (!rawData || rawData.length === 0) return;
-      
-      const chartType = selChartType.value;
       const isGeral = currentStage === 'GERAL';
+      const ufsSet = new Set();
+      rawData.forEach(d => { ufsSet.add(d.uf_resolvida || 'N/D'); });
+      const labels = Array.from(ufsSet).sort();
       const ctx = document.getElementById('proc-chart-canvas').getContext('2d');
 
-      if (chartInstance) chartInstance.destroy();
-
-      // Atualiza o novo contador gigante no HTML
-      const totalProcessosGrafico = rawData.length;
-      const countEl = document.getElementById('proc-chart-total-count');
-      if (countEl) {
-        countEl.textContent = totalProcessosGrafico;
-      }
-
       const gradientColors = [
-        ['#F59E0B', '#D97706'], ['#10B981', '#059669'], ['#8B5CF6', '#6D28D9'], 
-        ['#EC4899', '#BE185D'], ['#F97316', '#C2410C'], ['#06B6D4', '#0E7490'], 
-        ['#EF4444', '#B91C1C'], ['#84CC16', '#4D7C0F'], ['#6366F1', '#4338CA'], 
+        ['#F59E0B', '#D97706'], 
+        ['#10B981', '#059669'], 
+        ['#8B5CF6', '#6D28D9'], 
+        ['#EC4899', '#BE185D'], 
+        ['#F97316', '#C2410C'], 
+        ['#06B6D4', '#0E7490'], 
+        ['#EF4444', '#B91C1C'], 
+        ['#84CC16', '#4D7C0F'], 
+        ['#6366F1', '#4338CA'], 
         ['#3B82F6', '#1D4ED8']  
       ];
 
-      let labels = [];
       let datasets = [];
-      let chartOptions = {};
 
-      const isDarkMode = appRoot.classList.contains('theme-dark');
-      const textColor = isDarkMode ? '#FFFFFF' : '#0C4A6E';
-
-      if (chartType === 'bar' || chartType === 'line') {
-        const ufsSet = new Set();
-        rawData.forEach(d => { ufsSet.add(d.uf_resolvida || 'N/D'); });
-        labels = Array.from(ufsSet).sort();
-        
-        const categories = isGeral ? ['Etapa Estadual', 'Etapa Federal', 'Etapa Financeira'] : ETAPAS_CONFIG[currentStage];
-        
-        datasets = categories.map((cat, index) => {
+      if (isGeral) {
+        const etapas = ['Etapa Estadual', 'Etapa Federal', 'Etapa Financeira'];
+        datasets = etapas.map((etapa, index) => {
           const dataPoints = labels.map(uf => {
             return rawData.filter(d => {
               const rowUf = d.uf_resolvida || 'N/D';
-              if (isGeral) return rowUf === uf && getEtapaByAtividade(d.atividade_atual) === cat;
-              return rowUf === uf && d.atividade_atual === cat;
+              return rowUf === uf && getEtapaByAtividade(d.atividade_atual) === etapa;
             }).length;
           });
 
@@ -1926,100 +1892,86 @@
           grad.addColorStop(1, palette[1]);
 
           return {
-            label: isGeral ? cat : formatLabel(cat),
+            label: etapa,
             data: dataPoints,
             backgroundColor: grad,
-            borderColor: chartType === 'line' ? palette[0] : 'transparent',
-            borderWidth: chartType === 'line' ? 3 : 0,
-            borderRadius: chartType === 'bar' ? 6 : 0,
-            fill: chartType !== 'line',
-            tension: 0.4,
-            maxBarThickness: chartType === 'bar' ? (isGeral ? 40 : 32) : undefined
+            borderRadius: 6,
+            borderWidth: 0,
+            maxBarThickness: 40
           };
         });
+      } else {
+        const atividades = ETAPAS_CONFIG[currentStage];
+        datasets = atividades.map((ativ, index) => {
+          const dataPoints = labels.map(uf => {
+            return rawData.filter(d => {
+              const rowUf = d.uf_resolvida || 'N/D';
+              return rowUf === uf && d.atividade_atual === ativ;
+            }).length;
+          });
 
-        chartOptions = {
+          const grad = ctx.createLinearGradient(0, 0, 0, 300);
+          const palette = gradientColors[index % gradientColors.length];
+          grad.addColorStop(0, palette[0]);
+          grad.addColorStop(1, palette[1]);
+
+          return {
+            label: formatLabel(ativ),
+            data: dataPoints,
+            backgroundColor: grad,
+            borderRadius: 6,
+            borderWidth: 0,
+            maxBarThickness: 32
+          };
+        });
+      }
+
+      chartWrapper.style.display = 'block';
+      btnChart.innerHTML = '📊 Ocultar Gráfico';
+
+      if (chartInstance) chartInstance.destroy();
+
+      chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
           responsive: true,
           maintainAspectRatio: false,
           interaction: { mode: 'index', intersect: false },
           plugins: {
             legend: { 
-              position: 'top', 
-              labels: { font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' }, color: textColor, usePointStyle: true, padding: 16 } 
+              position: 'top',
+              labels: { 
+                font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' }, 
+                usePointStyle: true,
+                padding: 16
+              }
             },
-            tooltip: { 
-              titleFont: { family: 'Plus Jakarta Sans', size: 13, weight: '700' }, 
-              bodyFont: { family: 'Plus Jakarta Sans', size: 12 }, 
-              padding: 12, cornerRadius: 8, backgroundColor: 'rgba(0, 0, 0, 0.95)' 
-            },
-            customCanvasBackgroundColor: { color: isDarkMode ? '#141414' : '#ffffff' }
+            tooltip: {
+              titleFont: { family: 'Plus Jakarta Sans', size: 13, weight: '700' },
+              bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
+              padding: 12,
+              cornerRadius: 8,
+              backgroundColor: 'rgba(0, 0, 0, 0.95)'
+            }
           },
           scales: {
             x: { 
-              stacked: chartType === 'bar', 
-              grid: { display: false }, 
-              ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', weight: '600' } } 
+              stacked: true, 
+              grid: { display: false },
+              ticks: { font: { family: 'Plus Jakarta Sans', weight: '600' } }
             },
             y: { 
-              stacked: chartType === 'bar', 
+              stacked: true, 
               border: { display: false }, 
-              grid: { color: 'rgba(150, 150, 150, 0.15)' }, 
-              ticks: { color: textColor },
+              grid: { color: 'rgba(255, 255, 255, 0.08)' },
               beginAtZero: true 
             }
           }
-        };
-
-      } else {
-        const categories = isGeral ? ['Etapa Estadual', 'Etapa Federal', 'Etapa Financeira'] : ETAPAS_CONFIG[currentStage];
-        labels = categories.map(c => isGeral ? c : formatLabel(c));
-
-        const dataPoints = categories.map(cat => {
-          return rawData.filter(d => {
-            if (isGeral) return getEtapaByAtividade(d.atividade_atual) === cat;
-            return d.atividade_atual === cat;
-          }).length;
-        });
-
-        const bgColors = categories.map((_, index) => {
-          const grad = ctx.createLinearGradient(0, 0, 0, 300);
-          const palette = gradientColors[index % gradientColors.length];
-          grad.addColorStop(0, palette[0]);
-          grad.addColorStop(1, palette[1]);
-          return grad;
-        });
-
-        datasets = [{
-          data: dataPoints,
-          backgroundColor: bgColors,
-          borderWidth: 2,
-          borderColor: isDarkMode ? '#141414' : '#ffffff'
-        }];
-
-        chartOptions = {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { 
-              position: 'right', 
-              labels: { font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' }, color: textColor, usePointStyle: true, padding: 16 } 
-            },
-            tooltip: { 
-              titleFont: { family: 'Plus Jakarta Sans', size: 13, weight: '700' }, 
-              bodyFont: { family: 'Plus Jakarta Sans', size: 12 }, 
-              padding: 12, cornerRadius: 8, backgroundColor: 'rgba(0, 0, 0, 0.95)' 
-            },
-            customCanvasBackgroundColor: { color: isDarkMode ? '#141414' : '#ffffff' }
-          }
-        };
-      }
-
-      chartInstance = new Chart(ctx, {
-        type: chartType,
-        data: { labels, datasets },
-        options: chartOptions,
-        plugins: [customCanvasBgPlugin]
+        }
       });
+
+      chartWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function hideChart() {
@@ -2027,94 +1979,6 @@
       btnChart.innerHTML = '📊 Mostrar Gráfico';
     }
 
-    selChartType.addEventListener('change', () => {
-      if (chartWrapper.style.display === 'block') {
-        renderChart();
-      }
-    });
-
-    btnExportPdf.addEventListener('click', () => {
-      if (!chartInstance) return;
-      
-      showToast('Gerando PDF em tamanho maximizado...', 'info');
-
-      // 1. Criar canvas em alta resolução (3x) para não ficar embaçado quando gigante
-      const originalCanvas = document.getElementById('proc-chart-canvas');
-      const scaleFactor = 3; 
-      
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = originalCanvas.width * scaleFactor;
-      tempCanvas.height = originalCanvas.height * scaleFactor;
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCtx.scale(scaleFactor, scaleFactor);
-
-      tempCtx.fillStyle = '#FFFFFF';
-      tempCtx.fillRect(0, 0, originalCanvas.width, originalCanvas.height);
-      tempCtx.drawImage(originalCanvas, 0, 0);
-
-      const imgData = tempCanvas.toDataURL('image/png', 1.0);
-
-      // 2. Criar PDF A4 Paisagem
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      const pageWidth = 297;  
-      const pageHeight = 210; 
-
-      // Cabeçalho fino para economizar espaço
-      doc.setFillColor(245, 247, 250);
-      doc.rect(0, 0, pageWidth, 20, 'F');
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.setTextColor(12, 74, 110);
-      doc.text("RELATÓRIO ANALÍTICO DE PROCESSOS", 10, 10);
-
-      const totalProcs = rawData ? rawData.length : 0;
-      const etapaNome = currentStage === 'GERAL' ? 'Visão Geral' : `Etapa ${currentStage}`;
-      const dataHoje = new Date().toLocaleDateString('pt-BR');
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(100, 116, 139);
-      doc.text(`Filtro: ${etapaNome} | Total: ${totalProcs} processo(s) | Data: ${dataHoje}`, 10, 16);
-
-      // 3. Maximizar tamanho do gráfico
-      const margin = 8; // Margem minúscula (8mm)
-      const maxImgWidth = pageWidth - (margin * 2); // Usa toda a largura
-      const headerOffset = 22; 
-      const footerOffset = 6; 
-      const maxImgHeight = pageHeight - headerOffset - footerOffset - margin; // Usa toda a altura restante
-
-      let imgWidth = maxImgWidth;
-      let imgHeight = (originalCanvas.height * imgWidth) / originalCanvas.width;
-
-      // Restringir à altura se estourar
-      if (imgHeight > maxImgHeight) {
-        imgHeight = maxImgHeight;
-        imgWidth = (originalCanvas.width * imgHeight) / originalCanvas.height;
-      }
-
-      // Centralizar horizontalmente e posicionar perfeitamente
-      const xPos = (pageWidth - imgWidth) / 2;
-      const yPos = headerOffset + ((maxImgHeight - imgHeight) / 2);
-
-      // Inserir imagem gigante
-      doc.addImage(imgData, 'PNG', xPos, yPos, imgWidth, imgHeight, undefined, 'FAST');
-
-      // Rodapé no cantinho
-      doc.setFontSize(8);
-      doc.setTextColor(150, 150, 150);
-      doc.text("Visualizador de Processos — Painel Analítico", pageWidth / 2, pageHeight - 4, { align: 'center' });
-
-      const filename = `Grafico_Processos_${currentStage}_${new Date().toISOString().split('T')[0]}.pdf`;
-      doc.save(filename);
-      showToast('PDF gerado e ampliado com sucesso!', 'success');
-    });
     btnChart.addEventListener('click', toggleChart);
     if (btnCloseChart) btnCloseChart.addEventListener('click', hideChart);
 
@@ -2193,6 +2057,7 @@
     let allMunicipioValues = [];
 
     function getUniqueSortedValues(field, fallback) {
+  // Alterar para usar rawData em vez de memoryCache['GERAL_TODOS']
   const base = rawData || [];
   const set = new Set();
   base.forEach(row => {
@@ -2202,7 +2067,7 @@
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
-    function buildChecklist(listEl, values, checkedSet, searchTerm) {
+    function buildChecklist(listEl, values, checkedSet, searchTerm, onToggle) {
       listEl.innerHTML = '';
       const term = (searchTerm || '').toLowerCase().trim();
       const filteredValues = term
@@ -2225,6 +2090,7 @@
         checkbox.addEventListener('change', () => {
           if (checkbox.checked) checkedSet.add(val);
           else checkedSet.delete(val);
+          if (typeof onToggle === 'function') onToggle();
         });
 
         const span = document.createElement('span');
@@ -2238,13 +2104,42 @@
       listEl.appendChild(frag);
     }
 
+    let liveFilterDebounceTimer = null;
+    function applyLiveFilter() {
+      clearTimeout(liveFilterDebounceTimer);
+      liveFilterDebounceTimer = setTimeout(() => {
+        activeImovelFilter = (tempImovelChecked.size === allImovelValues.length) ? null : new Set(tempImovelChecked);
+        activeMunicipioFilter = (tempMunicipioChecked.size === allMunicipioValues.length) ? null : new Set(tempMunicipioChecked);
+
+        const hasActiveFilter = !!activeImovelFilter || !!activeMunicipioFilter;
+        locFilterBtn.classList.toggle('pfd-active', hasActiveFilter);
+        locFilterBtn.textContent = hasActiveFilter ? '⏷' : '▼';
+
+        applyColumnFilters();
+      }, 120);
+    }
+
     function refreshImovelList() {
-      buildChecklist(pfdListImovel, allImovelValues, tempImovelChecked, pfdSearchImovel.value);
+      buildChecklist(pfdListImovel, allImovelValues, tempImovelChecked, pfdSearchImovel.value, () => {
+        refreshImovelCount();
+        applyLiveFilter();
+      });
+      refreshImovelCount();
+    }
+
+    function refreshImovelCount() {
       pfdCountImovel.textContent = `${tempImovelChecked.size} de ${allImovelValues.length} selecionadas`;
     }
 
     function refreshMunicipioList() {
-      buildChecklist(pfdListMunicipio, allMunicipioValues, tempMunicipioChecked, pfdSearchMunicipio.value);
+      buildChecklist(pfdListMunicipio, allMunicipioValues, tempMunicipioChecked, pfdSearchMunicipio.value, () => {
+        refreshMunicipioCount();
+        applyLiveFilter();
+      });
+      refreshMunicipioCount();
+    }
+
+    function refreshMunicipioCount() {
       pfdCountMunicipio.textContent = `${tempMunicipioChecked.size} de ${allMunicipioValues.length} selecionados`;
     }
 
@@ -2303,39 +2198,38 @@
     pfdCheckAllImovel.addEventListener('click', () => {
       allImovelValues.forEach(v => tempImovelChecked.add(v));
       refreshImovelList();
+      applyLiveFilter();
     });
     pfdUncheckAllImovel.addEventListener('click', () => {
       tempImovelChecked.clear();
       refreshImovelList();
+      applyLiveFilter();
     });
     pfdCheckAllMunicipio.addEventListener('click', () => {
       allMunicipioValues.forEach(v => tempMunicipioChecked.add(v));
       refreshMunicipioList();
+      applyLiveFilter();
     });
     pfdUncheckAllMunicipio.addEventListener('click', () => {
       tempMunicipioChecked.clear();
       refreshMunicipioList();
+      applyLiveFilter();
     });
 
     pfdBtnApply.addEventListener('click', () => {
-      activeImovelFilter = (tempImovelChecked.size === allImovelValues.length) ? null : new Set(tempImovelChecked);
-      activeMunicipioFilter = (tempMunicipioChecked.size === allMunicipioValues.length) ? null : new Set(tempMunicipioChecked);
-
-      const hasActiveFilter = !!activeImovelFilter || !!activeMunicipioFilter;
-      locFilterBtn.classList.toggle('pfd-active', hasActiveFilter);
-      locFilterBtn.textContent = hasActiveFilter ? '⏷' : '▼';
-
-      applyColumnFilters();
       closeFilterDropdown();
     });
 
     pfdBtnClear.addEventListener('click', () => {
       activeImovelFilter = null;
       activeMunicipioFilter = null;
+      tempImovelChecked = new Set(allImovelValues);
+      tempMunicipioChecked = new Set(allMunicipioValues);
+      refreshImovelList();
+      refreshMunicipioList();
       locFilterBtn.classList.remove('pfd-active');
       locFilterBtn.textContent = '▼';
       applyColumnFilters();
-      closeFilterDropdown();
     });
 
     btnPageFirst.addEventListener('click', () => { currentPageNum = 1; renderPage(); });
