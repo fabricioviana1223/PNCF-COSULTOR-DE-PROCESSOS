@@ -1,8 +1,16 @@
 <!-- Bibliotecas externas: Chart.js e SheetJS (Excel) -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <div id="proc-app-root" class="proc-container theme-light animate-fade-in">
+
+  <!-- OVERLAY DE CARREGAMENTO INICIAL: BLOQUEIA CLIQUES ATÉ OS DADOS CARREGAREM -->
+  <div id="proc-init-overlay" class="proc-init-overlay">
+    <div class="proc-init-spinner"></div>
+    <div class="proc-init-text">Carregando dados iniciais, aguarde...</div>
+  </div>
 
   <!-- CABEÇALHO -->
   <div class="proc-page-header">
@@ -23,24 +31,34 @@
 
       <div id="proc-badge" class="proc-badge proc-glow-effect">
         <span class="proc-status-dot pulse"></span>
-        <span id="proc-badge-count">0</span> processos localizados
+        <span class="proc-badge-count-big" id="proc-badge-count">0</span>
+        <span class="proc-badge-count-label"><small>Total de</small><span>processos localizados</span></span>
+      </div>
+
+      <div id="proc-badge-sobrestado" class="proc-badge proc-badge-sobrestado">
+        <span class="proc-badge-sobrestado-icon">⛔</span>
+        <span class="proc-badge-count-big proc-badge-count-danger" id="stat-sobrestado">0</span>
+        <span class="proc-badge-count-label"><small>Processos</small><span>sobrestados</span></span>
       </div>
     </div>
   </div>
 
   <!-- SELETOR DE ETAPAS -->
   <div class="proc-card proc-stage-bar">
-    <button class="proc-stage-btn" data-stage="ESTADUAL">
+    <button class="proc-stage-btn" data-stage="ESTADUAL" style="--stage-color:#F59E0B">
       <span class="proc-stage-icon">🏛️</span>
       <span>Etapa Estadual</span>
+      <span class="proc-stage-count" id="stage-count-estadual">0</span>
     </button>
-    <button class="proc-stage-btn" data-stage="FEDERAL">
+    <button class="proc-stage-btn" data-stage="FEDERAL" style="--stage-color:#10B981">
       <span class="proc-stage-icon">🇧🇷</span>
       <span>Etapa Federal</span>
+      <span class="proc-stage-count" id="stage-count-federal">0</span>
     </button>
-    <button class="proc-stage-btn" data-stage="FINANCEIRA">
+    <button class="proc-stage-btn" data-stage="FINANCEIRA" style="--stage-color:#3B82F6">
       <span class="proc-stage-icon">💰</span>
       <span>Etapa Financeira</span>
+      <span class="proc-stage-count" id="stage-count-financeira">0</span>
     </button>
     <!-- GERAL ativo por padrão -->
     <button class="proc-stage-btn active" data-stage="GERAL">
@@ -52,7 +70,18 @@
   <!-- PAINEL DE FILTROS -->
   <div class="proc-card proc-filters-panel">
     <div class="proc-filters-grid">
-      
+
+      <div class="proc-form-group proc-col-search">
+        <label class="proc-label-small" for="inp-global-search">BUSCA RÁPIDA</label>
+        <div class="proc-input-wrapper proc-input-icon-wrapper">
+          <svg class="proc-input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="inp-global-search" class="proc-input proc-input-search" placeholder="Processo, nome, CPF, imóvel, município...">
+        </div>
+      </div>
+
       <div class="proc-form-group proc-col-uf">
         <label class="proc-label-small" for="sel-uf">UF (ESTADO)</label>
         <div class="proc-input-wrapper">
@@ -92,6 +121,13 @@
             <span>Atualizar Banco</span>
           </button>
 
+          <button id="btn-clear-filters" class="proc-btn proc-btn-ghost" title="Limpar todos os filtros de busca">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            </svg>
+            <span>Limpar Filtros</span>
+          </button>
+
           <!-- BOTÃO DE EXPORTAR PARA EXCEL -->
           <button id="btn-export-excel" class="proc-btn proc-btn-excel" title="Exportar dados visíveis para uma planilha Excel">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -116,6 +152,7 @@
             </svg>
             <span>Abrir Selecionados (<span id="count-selected">0</span>)</span>
           </button>
+          
         </div>
       </div>
 
@@ -148,14 +185,67 @@
       <div class="proc-chart-title-box">
         <span class="proc-chart-icon">📈</span>
         <div>
-          <h3 class="proc-chart-title">Resumo Analítico por Atividade</h3>
-          <p class="proc-chart-sub">Distribuição visual dos processos por estado e atividade atual</p>
+          <h3 class="proc-chart-title" id="proc-chart-title-text">Resumo Analítico por Atividade</h3>
+          <p class="proc-chart-sub" id="proc-chart-sub-text">Distribuição visual dos processos por estado e atividade atual</p>
         </div>
       </div>
-      <button id="btn-close-chart" type="button" class="proc-btn-close">✕</button>
+      <div class="proc-chart-header-actions">
+        <button id="btn-export-chart-pdf" type="button" class="proc-btn proc-btn-secondary proc-tooltip-trigger" data-tooltip="Gerar PDF em alta resolução deste gráfico">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <text x="7" y="18" font-size="7" font-weight="800" fill="currentColor" stroke="none">PDF</text>
+          </svg>
+          <span>Baixar PDF (HD)</span>
+        </button>
+        <button id="btn-close-chart" type="button" class="proc-btn-close">✕</button>
+      </div>
     </div>
-    <div class="proc-chart-canvas-container">
-      <canvas id="proc-chart-canvas"></canvas>
+
+    <!-- CONTROLES DE VISUALIZAÇÃO: tipo de gráfico e forma de agrupamento dos dados -->
+    <div class="proc-chart-controls" id="proc-chart-controls">
+      <div class="proc-form-group proc-chart-control-group">
+        <label class="proc-label-small" for="sel-chart-group">AGRUPAR POR</label>
+        <div class="proc-input-wrapper">
+          <select id="sel-chart-group" class="proc-input proc-select proc-select-sm">
+            <option value="uf">Estado (UF)</option>
+            <option value="atividade">Atividade</option>
+            <option value="etapa">Etapa do Processo</option>
+            <option value="status">Status (Regular x Sobrestado)</option>
+          </select>
+        </div>
+      </div>
+      <div class="proc-form-group proc-chart-control-group">
+        <label class="proc-label-small" for="sel-chart-type">TIPO DE GRÁFICO</label>
+        <div class="proc-input-wrapper">
+          <select id="sel-chart-type" class="proc-input proc-select proc-select-sm">
+            <option value="stackedBar">Barras Empilhadas</option>
+            <option value="groupedBar">Barras Agrupadas</option>
+            <option value="horizontalBar">Barras Horizontais</option>
+            <option value="line">Linha</option>
+            <option value="pie">Pizza</option>
+            <option value="doughnut">Rosca</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="proc-chart-grid" id="proc-chart-capture-area">
+      <div class="proc-chart-canvas-container">
+        <canvas id="proc-chart-canvas"></canvas>
+      </div>
+      <div class="proc-chart-side">
+        <div class="proc-chart-donut-container">
+          <canvas id="proc-chart-donut"></canvas>
+        </div>
+        <div class="proc-chart-side-legend" id="proc-chart-side-legend"></div>
+      </div>
+    </div>
+
+    <!-- Rodapé visível apenas durante a exportação em PDF, com data/hora de geração -->
+    <div class="proc-chart-pdf-footer" id="proc-chart-pdf-footer">
+      <span>Visualizador de Processos — Painel Analítico</span>
+      <span id="proc-chart-pdf-footer-date"></span>
     </div>
   </div>
 
@@ -348,6 +438,33 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
+  @keyframes procRowIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .proc-row-anim { animation: procRowIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+  @keyframes procAuroraShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  @keyframes procStatPop {
+    0% { transform: scale(0.9); opacity: 0.6; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Scrollbar customizada */
+  .proc-container ::-webkit-scrollbar { width: 10px; height: 10px; }
+  .proc-container ::-webkit-scrollbar-track { background: transparent; }
+  .proc-container ::-webkit-scrollbar-thumb {
+    background: var(--proc-accent-main);
+    opacity: 0.5;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
   /* --- CABEÇALHO --- */
   .proc-page-header {
     display: flex;
@@ -356,18 +473,21 @@
     margin-bottom: 1.25rem;
     flex-wrap: wrap;
     gap: 1.2rem;
-    background: linear-gradient(135deg, rgba(229, 9, 20, 0.12) 0%, rgba(20, 20, 20, 0.95) 100%);
+    background: linear-gradient(120deg, rgba(229, 9, 20, 0.16) 0%, rgba(20, 20, 20, 0.97) 45%, rgba(90, 20, 90, 0.18) 100%);
+    background-size: 220% 220%;
+    animation: procAuroraShift 14s ease-in-out infinite;
     padding: 1.5rem 1.8rem;
     border-radius: 16px;
     border: 1px solid var(--proc-border);
     box-shadow: var(--proc-shadow-card);
     position: relative;
     overflow: hidden;
-    transition: all 0.4s ease;
+    transition: background-color 0.4s ease, color 0.4s ease;
   }
 
   .theme-light .proc-page-header {
-    background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(220, 240, 255, 0.9) 100%);
+    background: linear-gradient(120deg, rgba(255,255,255,0.92) 0%, rgba(200, 235, 255, 0.9) 45%, rgba(186, 230, 253, 0.85) 100%);
+    background-size: 220% 220%;
     backdrop-filter: blur(10px);
     box-shadow: 0 8px 30px rgba(0, 100, 200, 0.15);
   }
@@ -646,6 +766,69 @@
 
   .proc-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
 
+  /* Botão apenas com ícone (ex: info de última atualização) */
+  .proc-icon-only { width: 44px; padding: 0; flex-shrink: 0; }
+
+  /* --- TOOLTIP GENÉRICO NO HOVER (usar com data-tooltip="texto") --- */
+  .proc-tooltip-trigger { position: relative; }
+  .proc-tooltip-trigger::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 11px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    background: var(--proc-surface-card);
+    color: var(--proc-text-main);
+    border: 1.5px solid var(--proc-border);
+    box-shadow: var(--proc-shadow-card);
+    padding: 0.55rem 0.85rem;
+    border-radius: 9px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+    z-index: 60;
+  }
+  .proc-tooltip-trigger::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 5px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    border: 6px solid transparent;
+    border-top-color: var(--proc-border);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+    z-index: 60;
+  }
+  .proc-tooltip-trigger:hover::after,
+  .proc-tooltip-trigger:hover::before,
+  .proc-tooltip-trigger:focus-visible::after,
+  .proc-tooltip-trigger:focus-visible::before {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+  }
+  .proc-tooltip-trigger.proc-tooltip-right::after,
+  .proc-tooltip-trigger.proc-tooltip-right::before {
+    bottom: auto; top: 50%; left: calc(100% + 11px);
+    transform: translateY(-50%) translateX(-4px);
+  }
+  .proc-tooltip-trigger.proc-tooltip-right::before {
+    left: calc(100% + 5px);
+    border-top-color: transparent;
+    border-right-color: var(--proc-border);
+  }
+  .proc-tooltip-trigger.proc-tooltip-right:hover::after,
+  .proc-tooltip-trigger.proc-tooltip-right:hover::before {
+    transform: translateY(-50%) translateX(0);
+  }
+
   /* LOADER ANIMADO */
   .proc-loader-wrapper {
     display: flex;
@@ -700,6 +883,12 @@
     justify-content: center;
     color: var(--proc-text-light);
     margin-bottom: 1.2rem;
+    animation: procFloat 3s ease-in-out infinite;
+  }
+
+  @keyframes procFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
   }
 
   .proc-empty-title { font-size: 1.2rem; font-weight: 700; color: var(--proc-text-main); margin-bottom: 0.4rem; }
@@ -720,6 +909,39 @@
   .proc-chart-icon { font-size: 1.4rem; }
   .proc-chart-title { font-size: 1.15rem; font-weight: 800; margin: 0; color: var(--proc-text-main); }
   .proc-chart-sub { font-size: 0.8rem; color: var(--proc-text-muted); margin: 2px 0 0 0; }
+  .proc-chart-header-actions { display: flex; align-items: center; gap: 0.75rem; }
+  .proc-chart-header-actions .proc-btn { height: 38px; padding: 0 1rem; font-size: 0.8rem; }
+
+  /* --- CONTROLES DE VISUALIZAÇÃO DO GRÁFICO (tipo + agrupamento) --- */
+  .proc-chart-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px dashed var(--proc-border-light);
+  }
+  .proc-chart-control-group { min-width: 210px; flex: 1 1 210px; }
+  .proc-select-sm { height: 38px; font-size: 0.82rem; }
+
+  /* Ao capturar o gráfico para o PDF, os controles/botões ficam ocultos temporariamente */
+  .proc-chart-card.proc-chart-capturing .proc-chart-controls,
+  .proc-chart-card.proc-chart-capturing .proc-chart-header-actions .proc-btn:not(.proc-btn-close),
+  .proc-chart-card.proc-chart-capturing .proc-btn-close {
+    visibility: hidden;
+  }
+  .proc-chart-pdf-footer {
+    display: none;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--proc-border-light);
+    font-size: 0.72rem;
+    color: var(--proc-text-muted);
+    font-weight: 600;
+  }
+  .proc-chart-card.proc-chart-capturing .proc-chart-pdf-footer { display: flex; }
 
   .proc-btn-close {
     background: var(--proc-surface);
@@ -738,6 +960,30 @@
 
   .proc-btn-close:hover { background: var(--proc-accent-main); color: #FFF; }
   .proc-chart-canvas-container { position: relative; height: 360px; width: 100%; }
+
+  .proc-chart-grid { display: flex; gap: 1.5rem; align-items: stretch; }
+  .proc-chart-grid .proc-chart-canvas-container { flex: 1 1 62%; min-width: 0; }
+  .proc-chart-side {
+    flex: 1 1 32%;
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    border-left: 1px solid var(--proc-border-light);
+    padding-left: 1.5rem;
+  }
+  .proc-chart-donut-container { position: relative; width: 100%; max-width: 220px; height: 220px; }
+  .proc-chart-side-legend { display: flex; flex-direction: column; gap: 0.5rem; width: 100%; }
+  .proc-chart-side-legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 700; color: var(--proc-text-main); }
+  .proc-chart-side-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .proc-chart-side-legend-item span.proc-chart-legend-num { margin-left: auto; color: var(--proc-text-muted); font-weight: 800; }
+
+  @media (max-width: 860px) {
+    .proc-chart-grid { flex-direction: column; }
+    .proc-chart-side { border-left: none; border-top: 1px solid var(--proc-border-light); padding-left: 0; padding-top: 1.25rem; }
+  }
 
   /* TABELA DESIGN */
   .proc-table-card { border: 1px solid var(--proc-border); }
@@ -934,6 +1180,164 @@
     text-align: center;
     font-weight: 500;
   }
+
+  /* --- BARRA DE ESTATÍSTICAS RÁPIDAS (LEGADO, MANTIDO P/ COMPATIBILIDADE) --- */
+  .proc-stats-bar {
+    display: none;
+  }
+
+  /* --- CONTAGEM NAS ABAS DE ETAPA --- */
+  .proc-stage-count {
+    position: absolute;
+    top: 50%;
+    right: 0.85rem;
+    transform: translateY(-50%);
+    background: color-mix(in srgb, var(--stage-color, var(--proc-accent-main)) 18%, transparent);
+    color: var(--stage-color, var(--proc-accent-main));
+    border: 1.5px solid var(--stage-color, var(--proc-accent-main));
+    font-weight: 800;
+    font-size: 0.75rem;
+    line-height: 1;
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    min-width: 30px;
+    text-align: center;
+    transition: transform 0.2s ease;
+  }
+  .proc-stage-btn:hover .proc-stage-count { transform: translateY(-50%) scale(1.08); }
+  .proc-stage-btn.active .proc-stage-count { box-shadow: 0 0 10px color-mix(in srgb, var(--stage-color, var(--proc-accent-main)) 55%, transparent); }
+
+  /* --- BARRA DE DESTAQUE (SOBRESTADOS) --- */
+  .proc-highlight-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 1.1rem;
+    border-radius: 12px;
+    background: color-mix(in srgb, #EF4444 10%, var(--proc-surface-card));
+    border: 1px solid color-mix(in srgb, #EF4444 35%, var(--proc-border));
+    margin-bottom: 1.25rem;
+  }
+  .proc-highlight-icon { font-size: 1.15rem; }
+  .proc-highlight-info { display: flex; align-items: baseline; gap: 0.45rem; }
+  .proc-highlight-value { font-size: 1.15rem; font-weight: 800; color: #EF4444; animation: procStatPop 0.3s ease; }
+  .proc-highlight-label { font-size: 0.775rem; font-weight: 700; color: var(--proc-text-muted); }
+
+  /* --- BADGE DE TOTAL EM DESTAQUE NO CABEÇALHO --- */
+  .proc-badge {
+    padding: 0.9rem 1.5rem;
+    border-radius: 16px;
+    gap: 0.85rem;
+  }
+  .proc-badge-count-big {
+    font-size: 1.9rem;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--proc-text-main);
+    text-shadow: 0 0 18px var(--proc-accent-glow);
+    animation: procStatPop 0.35s ease;
+  }
+  .proc-badge-count-label {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+  }
+  .proc-badge-count-label small {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--proc-text-muted);
+  }
+  .proc-status-dot { width: 10px; height: 10px; }
+
+  /* --- BADGE DE SOBRESTADOS NO CABEÇALHO (ao lado do total) --- */
+  .proc-badge-sobrestado {
+    background: color-mix(in srgb, #EF4444 12%, rgba(0, 0, 0, 0.4));
+    border: 1px solid color-mix(in srgb, #EF4444 45%, var(--proc-border));
+  }
+  .theme-light .proc-badge-sobrestado {
+    background: color-mix(in srgb, #EF4444 10%, rgba(255, 255, 255, 0.85));
+    border: 1px solid color-mix(in srgb, #EF4444 45%, #7DD3FC);
+    box-shadow: inset 0 1px 3px #FFFFFF, 0 2px 8px rgba(0,0,0,0.05);
+  }
+  .proc-badge-sobrestado-icon { font-size: 1.3rem; line-height: 1; }
+  .proc-badge-count-danger {
+    color: #EF4444 !important;
+    text-shadow: 0 0 18px color-mix(in srgb, #EF4444 45%, transparent) !important;
+  }
+
+  /* --- OVERLAY DE CARREGAMENTO INICIAL (BLOQUEIA INTERAÇÃO) --- */
+  .proc-container { position: relative; }
+  .proc-init-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    background: var(--proc-bg-page);
+    border-radius: 16px;
+    transition: opacity 0.4s ease;
+  }
+  .proc-init-overlay.proc-init-hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .proc-init-spinner {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    border: 4px solid var(--proc-border);
+    border-top-color: var(--proc-accent-main);
+    animation: procSpin 0.85s linear infinite;
+  }
+  @keyframes procSpin { to { transform: rotate(360deg); } }
+  .proc-init-text { font-weight: 700; font-size: 0.925rem; color: var(--proc-text-muted); }
+
+
+  /* --- BUSCA RÁPIDA GLOBAL --- */
+  .proc-col-search { min-width: 260px; flex: 1 1 260px; }
+  .proc-input-icon-wrapper { position: relative; display: flex; align-items: center; }
+  .proc-input-icon {
+    position: absolute;
+    left: 0.9rem;
+    color: var(--proc-text-light);
+    pointer-events: none;
+  }
+  .proc-input-search { padding-left: 2.5rem; }
+
+  /* --- BOTÃO GHOST (LIMPAR FILTROS) --- */
+  .proc-btn-ghost {
+    background: transparent;
+    color: var(--proc-text-muted);
+    border: 1.5px dashed var(--proc-border);
+  }
+  .proc-btn-ghost:hover:not(:disabled) {
+    color: var(--proc-accent-main);
+    border-color: var(--proc-accent-main);
+    border-style: solid;
+    background: var(--proc-surface-hover);
+    transform: translateY(-2px);
+  }
+
+  /* --- CORES DE ETAPA NAS ABAS --- */
+  .proc-stage-btn[data-stage="ESTADUAL"].active { border-bottom-color: #F59E0B; }
+  .proc-stage-btn[data-stage="FEDERAL"].active { border-bottom-color: #10B981; }
+  .proc-stage-btn[data-stage="FINANCEIRA"].active { border-bottom-color: #3B82F6; }
+  .proc-stage-btn[data-stage="GERAL"].active { border-bottom-color: var(--proc-accent-main); }
+
+  /* --- MAIS FLUIDEZ NA TABELA --- */
+  .proc-table tbody tr:hover td {
+    background: var(--proc-surface-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  }
+  .proc-table tbody tr { will-change: transform; }
+  .proc-link:active { transform: translateY(1px) scale(0.98); }
+  .proc-btn:active:not(:disabled) { transform: translateY(0) scale(0.97) !important; }
 
   @media (max-width: 768px) {
     .proc-stage-bar { flex-direction: column; }
@@ -1358,7 +1762,108 @@
     let currentStage = 'GERAL';
     let rawData = [];
     let chartInstance = null; 
+    let donutInstance = null;
     let memoryCache = {};
+
+    /* ================================================================
+       CACHE PERSISTENTE (IndexedDB) — evita bater no limite do Supabase
+       Guarda os dados localmente e só busca no banco de novo:
+         1) quando o usuário clicar em "Atualizar Banco", ou
+         2) quando a última atualização for de um dia anterior.
+       Usamos IndexedDB (em vez de localStorage) porque a base tem
+       milhares de processos e passa fácil do limite de ~5-10MB do
+       localStorage. O IndexedDB aguenta muito mais dado.
+       ================================================================ */
+    const CACHE_DB_NAME = 'procVisualizadorDB';
+    const CACHE_DB_VERSION = 1;
+    const CACHE_STORE_NAME = 'cache';
+    const CACHE_RECORD_ID = 'main';
+
+    function openCacheDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(CACHE_DB_NAME, CACHE_DB_VERSION);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(CACHE_STORE_NAME)) {
+            db.createObjectStore(CACHE_STORE_NAME, { keyPath: 'id' });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    function isSameLocalDay(isoDateStr) {
+      if (!isoDateStr) return false;
+      const saved = new Date(isoDateStr);
+      const now = new Date();
+      return saved.getFullYear() === now.getFullYear()
+        && saved.getMonth() === now.getMonth()
+        && saved.getDate() === now.getDate();
+    }
+
+    async function saveCacheToStorage() {
+      try {
+        const db = await openCacheDB();
+        const payload = {
+          id: CACHE_RECORD_ID,
+          savedAt: new Date().toISOString(),
+          memoryCache: memoryCache
+        };
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction(CACHE_STORE_NAME, 'readwrite');
+          tx.objectStore(CACHE_STORE_NAME).put(payload);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+        updateLastSyncLabel(payload.savedAt);
+      } catch (e) {
+        console.warn('Não foi possível salvar o cache local:', e);
+        showToast('Aviso: cache local não pôde ser salvo neste navegador. A busca no banco continuará ocorrendo a cada acesso.', 'error');
+      }
+    }
+
+    async function loadCacheFromStorage() {
+      try {
+        const db = await openCacheDB();
+        const record = await new Promise((resolve, reject) => {
+          const tx = db.transaction(CACHE_STORE_NAME, 'readonly');
+          const req = tx.objectStore(CACHE_STORE_NAME).get(CACHE_RECORD_ID);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => reject(req.error);
+        });
+        if (!record || !record.memoryCache || !record.savedAt) return null;
+        return record;
+      } catch (e) {
+        console.warn('Cache local indisponível ou corrompido, ignorando:', e);
+        return null;
+      }
+    }
+
+    async function clearCacheStorage() {
+      try {
+        const db = await openCacheDB();
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction(CACHE_STORE_NAME, 'readwrite');
+          tx.objectStore(CACHE_STORE_NAME).delete(CACHE_RECORD_ID);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+      } catch (e) {}
+    }
+
+    function updateLastSyncLabel(isoDateStr) {
+      const el = document.getElementById('btn-last-sync-info');
+      if (!el) return;
+      if (!isoDateStr) {
+        el.setAttribute('data-tooltip', 'Ainda não sincronizado nesta sessão.');
+        return;
+      }
+      const d = new Date(isoDateStr);
+      const dataFmt = d.toLocaleDateString('pt-BR');
+      const horaFmt = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      el.setAttribute('data-tooltip', `Última atualização do banco: ${dataFmt} às ${horaFmt}`);
+    }
 
     /* ── Estado do Filtro Excel-style (Fazenda/Imóvel e Município) ── */
     let activeImovelFilter = null;     
@@ -1385,6 +1890,13 @@
     const chkSelectAll = document.getElementById('chk-select-all');
     const btnOpenSelected = document.getElementById('btn-open-selected');
     const countSelectedSpan = document.getElementById('count-selected');
+    const inpGlobalSearch = document.getElementById('inp-global-search');
+    const btnClearFilters = document.getElementById('btn-clear-filters');
+    const statSobrestado = document.getElementById('stat-sobrestado');
+    const stageCountEstadual = document.getElementById('stage-count-estadual');
+    const stageCountFederal = document.getElementById('stage-count-federal');
+    const stageCountFinanceira = document.getElementById('stage-count-financeira');
+    const initOverlay = document.getElementById('proc-init-overlay');
 
     /* ── Paginação ── */
     const paginationInfo = document.getElementById('proc-pagination-info');
@@ -1542,7 +2054,8 @@
 
           if (rawData.length === 0) {
             emptyState.style.display = 'block';
-            countBadge.textContent = '0';
+            animateNumber(countBadge, 0);
+          renderStats([]);
             showToast('Nenhum processo localizado para os filtros selecionados.', 'info');
           } else {
             btnChart.disabled = false;
@@ -1550,6 +2063,7 @@
             renderTable(rawData);
             if(forceUpdateFromDB === false) showToast(`Atualizado a partir da memória.`, 'success');
           }
+          updateStageBadges();
         }, 50);
         return;
       }
@@ -1565,10 +2079,13 @@
         if (!Array.isArray(principalData) || principalData.length === 0) {
           rawData = [];
           memoryCache[stageCacheKey] = [];
+          await saveCacheToStorage();
           loader.style.display = 'none';
           btnFetch.disabled = false;
           emptyState.style.display = 'block';
-          countBadge.textContent = '0';
+          animateNumber(countBadge, 0);
+          renderStats([]);
+          updateStageBadges();
           showToast('Nenhum processo localizado na base.', 'info');
           return;
         }
@@ -1627,6 +2144,7 @@
         }).filter(row => row.uf_resolvida !== 'N/D' && row.imovel_resolvido !== 'Não informado');
 
         memoryCache[stageCacheKey] = stageAllRows;
+        await saveCacheToStorage();
         rawData = applySearchFilters(stageAllRows, buscarTodos, ufSelecionada, filtroSobrestado);
 
         loader.style.display = 'none';
@@ -1634,7 +2152,8 @@
 
         if (rawData.length === 0) {
           emptyState.style.display = 'block';
-          countBadge.textContent = '0';
+          animateNumber(countBadge, 0);
+          renderStats([]);
           showToast('Nenhum processo localizado após aplicar os filtros.', 'info');
         } else {
           btnChart.disabled = false;
@@ -1642,6 +2161,7 @@
           renderTable(rawData);
           showToast(`${rawData.length} processos encontrados e base sincronizada!`, 'success');
         }
+        updateStageBadges();
 
       } catch (err) {
         console.error('[Processos] Falha ao executar fetchProcessos:', err);
@@ -1708,9 +2228,54 @@
     /* ================================================================
        RENDERIZAÇÃO DA TABELA & PAGINAÇÃO
        ================================================================ */
+    function animateNumber(el, to) {
+      if (!el) return;
+      const from = parseInt(el.textContent.replace(/\D/g, ''), 10) || 0;
+      if (from === to) { el.textContent = to; return; }
+      const duration = 420;
+      const start = performance.now();
+      function step(now) {
+        const progress = Math.min(1, (now - start) / duration);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = Math.round(from + (to - from) * eased);
+        if (progress < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    function renderStats(rows) {
+      let sobrestado = 0;
+      rows.forEach(row => { if (row.is_sobrestrado) sobrestado++; });
+      animateNumber(statSobrestado, sobrestado);
+    }
+
+    /* Atualiza os contadores coloridos exibidos diretamente nas abas de etapa,
+       sempre com base no total geral (independente da aba ativa), respeitando
+       os filtros de UF e status atualmente selecionados. */
+    function updateStageBadges() {
+      const source = memoryCache['GERAL_TODOS'];
+      if (!source) return;
+      const ufSelecionada = selUf.value;
+      const buscarTodos = !ufSelecionada;
+      const filtroSobrestado = selFiltroSobrestado.value;
+      const base = applySearchFilters(source, buscarTodos, ufSelecionada, filtroSobrestado);
+
+      let estadual = 0, federal = 0, financeira = 0;
+      base.forEach(row => {
+        const etapa = getEtapaByAtividade(row.atividade_atual);
+        if (etapa === 'Etapa Estadual') estadual++;
+        else if (etapa === 'Etapa Federal') federal++;
+        else if (etapa === 'Etapa Financeira') financeira++;
+      });
+      animateNumber(stageCountEstadual, estadual);
+      animateNumber(stageCountFederal, federal);
+      animateNumber(stageCountFinanceira, financeira);
+    }
+
     function renderTable(rows) {
       allFilteredRows = rows;
-      countBadge.textContent = rows.length;
+      animateNumber(countBadge, rows.length);
+      renderStats(rows);
       chkSelectAll.checked = false;
       updateSelectedCount();
       currentPageNum = 1;
@@ -1758,7 +2323,7 @@
         return;
       }
 
-      pageRows.forEach(row => {
+      pageRows.forEach((row, rowIdx) => {
         const processo = row.processo || '—';
         const titular = row.nome || '—';
         const imovel = row.imovel_resolvido || '—';
@@ -1806,6 +2371,8 @@
         }
 
         const tr = document.createElement('tr');
+        tr.classList.add('proc-row-anim');
+        tr.style.animationDelay = `${Math.min(rowIdx, 24) * 16}ms`;
         if (row.is_sobrestrado) {
             tr.classList.add('proc-row-sobrestrado');
             tr.title = "Processo Sobrestado";
@@ -1839,9 +2406,112 @@
        GERAÇÃO DO GRÁFICO
        ================================================================ */
     const btnCloseChart = document.getElementById('btn-close-chart');
+    const selChartGroup = document.getElementById('sel-chart-group');
+    const selChartType = document.getElementById('sel-chart-type');
+    const btnExportChartPdf = document.getElementById('btn-export-chart-pdf');
+    const chartTitleText = document.getElementById('proc-chart-title-text');
+    const chartSubText = document.getElementById('proc-chart-sub-text');
+
+    const GRADIENT_PALETTE = [
+      ['#F59E0B', '#D97706'],
+      ['#10B981', '#059669'],
+      ['#8B5CF6', '#6D28D9'],
+      ['#EC4899', '#BE185D'],
+      ['#F97316', '#C2410C'],
+      ['#06B6D4', '#0E7490'],
+      ['#EF4444', '#B91C1C'],
+      ['#84CC16', '#4D7C0F'],
+      ['#6366F1', '#4338CA'],
+      ['#3B82F6', '#1D4ED8']
+    ];
+
+    const CHART_GROUP_LABELS = {
+      uf: 'Estado (UF)',
+      atividade: 'Atividade',
+      etapa: 'Etapa do Processo',
+      status: 'Status (Regular x Sobrestado)'
+    };
+    const CHART_TYPE_LABELS = {
+      stackedBar: 'Barras Empilhadas',
+      groupedBar: 'Barras Agrupadas',
+      horizontalBar: 'Barras Horizontais',
+      line: 'Linha',
+      pie: 'Pizza',
+      doughnut: 'Rosca'
+    };
 
     function formatLabel(str) {
-      return str.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+      return String(str || '').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    /* Monta { labels, series } de acordo com a forma de agrupamento escolhida.
+       series é um array de { label, data } com valores alinhados aos labels. */
+    function buildChartSeries(groupBy) {
+      const isGeral = currentStage === 'GERAL';
+      let labels = [];
+      let series = [];
+
+      if (groupBy === 'uf') {
+        const ufCounts = {};
+        rawData.forEach(d => {
+          const uf = d.uf_resolvida || 'N/D';
+          ufCounts[uf] = (ufCounts[uf] || 0) + 1;
+        });
+        labels = Object.keys(ufCounts).sort((a, b) => ufCounts[b] - ufCounts[a]);
+        const groups = isGeral ? ['Etapa Estadual', 'Etapa Federal', 'Etapa Financeira'] : ETAPAS_CONFIG[currentStage];
+        series = groups.map(g => ({
+          label: isGeral ? g : formatLabel(g),
+          data: labels.map(uf => rawData.filter(d => {
+            const rowUf = d.uf_resolvida || 'N/D';
+            if (rowUf !== uf) return false;
+            return isGeral ? getEtapaByAtividade(d.atividade_atual) === g : d.atividade_atual === g;
+          }).length)
+        }));
+      } else if (groupBy === 'atividade') {
+        const acts = isGeral
+          ? [...new Set(rawData.map(d => d.atividade_atual).filter(Boolean))]
+          : (ETAPAS_CONFIG[currentStage] || []);
+        labels = acts.map(formatLabel);
+        series = [
+          { label: 'Regulares', data: acts.map(a => rawData.filter(d => d.atividade_atual === a && !d.is_sobrestrado).length) },
+          { label: 'Sobrestados', data: acts.map(a => rawData.filter(d => d.atividade_atual === a && d.is_sobrestrado).length) }
+        ];
+      } else if (groupBy === 'etapa') {
+        labels = ['Etapa Estadual', 'Etapa Federal', 'Etapa Financeira'];
+        series = [
+          { label: 'Regulares', data: labels.map(et => rawData.filter(d => getEtapaByAtividade(d.atividade_atual) === et && !d.is_sobrestrado).length) },
+          { label: 'Sobrestados', data: labels.map(et => rawData.filter(d => getEtapaByAtividade(d.atividade_atual) === et && d.is_sobrestrado).length) }
+        ];
+      } else if (groupBy === 'status') {
+        labels = ['Regulares', 'Sobrestados'];
+        series = [{
+          label: 'Processos',
+          data: [rawData.filter(d => !d.is_sobrestrado).length, rawData.filter(d => d.is_sobrestrado).length]
+        }];
+      }
+
+      return { labels, series };
+    }
+
+    function getChartScalesConfig(chartType, themeGrid, themeTextMuted) {
+      if (chartType === 'pie' || chartType === 'doughnut') return undefined;
+      const stacked = chartType !== 'groupedBar';
+      const isHorizontal = chartType === 'horizontalBar';
+      return {
+        x: {
+          stacked,
+          grid: { display: isHorizontal, color: themeGrid },
+          ticks: { font: { family: 'Plus Jakarta Sans', weight: '600' }, color: themeTextMuted },
+          beginAtZero: isHorizontal
+        },
+        y: {
+          stacked,
+          border: { display: false },
+          grid: { display: !isHorizontal, color: themeGrid },
+          ticks: { color: themeTextMuted },
+          beginAtZero: !isHorizontal
+        }
+      };
     }
 
     function toggleChart() {
@@ -1855,129 +2525,290 @@
         return;
       }
 
-      const isGeral = currentStage === 'GERAL';
-      const ufsSet = new Set();
-      rawData.forEach(d => { ufsSet.add(d.uf_resolvida || 'N/D'); });
-      const labels = Array.from(ufsSet).sort();
-      const ctx = document.getElementById('proc-chart-canvas').getContext('2d');
+      chartWrapper.style.display = 'block';
+      btnChart.innerHTML = '📊 Ocultar Gráfico';
+      renderMainChart();
+      chartWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
-      const gradientColors = [
-        ['#F59E0B', '#D97706'], 
-        ['#10B981', '#059669'], 
-        ['#8B5CF6', '#6D28D9'], 
-        ['#EC4899', '#BE185D'], 
-        ['#F97316', '#C2410C'], 
-        ['#06B6D4', '#0E7490'], 
-        ['#EF4444', '#B91C1C'], 
-        ['#84CC16', '#4D7C0F'], 
-        ['#6366F1', '#4338CA'], 
-        ['#3B82F6', '#1D4ED8']  
-      ];
+    /* Redesenha o gráfico principal com base nos seletores de "Agrupar por" e "Tipo de Gráfico".
+       Chamada tanto ao abrir o painel quanto sempre que o usuário troca alguma das opções. */
+    function renderMainChart() {
+      if (!rawData || rawData.length === 0) return;
 
+      const groupBy = selChartGroup ? selChartGroup.value : 'uf';
+      const chartType = selChartType ? selChartType.value : 'stackedBar';
+      const { labels, series } = buildChartSeries(groupBy);
+
+      if (chartTitleText) chartTitleText.textContent = `Resumo Analítico por ${CHART_GROUP_LABELS[groupBy]}`;
+      if (chartSubText) chartSubText.textContent = `Visualização em ${CHART_TYPE_LABELS[chartType].toLowerCase()} · dados atuais filtrados do painel`;
+
+      const canvasEl = document.getElementById('proc-chart-canvas');
+      const ctx = canvasEl.getContext('2d');
+
+      const rootStyles = getComputedStyle(appRoot);
+      const themeTextMuted = rootStyles.getPropertyValue('--proc-text-muted').trim() || '#888';
+      const themeGrid = rootStyles.getPropertyValue('--proc-border-light').trim() || 'rgba(128,128,128,0.15)';
+      const themeSurface = rootStyles.getPropertyValue('--proc-modal-solid').trim()
+        || (appRoot.classList.contains('theme-dark') ? '#1c1c1c' : '#ffffff');
+      const themeTooltipText = appRoot.classList.contains('theme-dark') ? '#ffffff' : '#0C4A6E';
+
+      const isPieLike = (chartType === 'pie' || chartType === 'doughnut');
+      const isLine = (chartType === 'line');
+      const isHorizontal = (chartType === 'horizontalBar');
       let datasets = [];
 
-      if (isGeral) {
-        const etapas = ['Etapa Estadual', 'Etapa Federal', 'Etapa Financeira'];
-        datasets = etapas.map((etapa, index) => {
-          const dataPoints = labels.map(uf => {
-            return rawData.filter(d => {
-              const rowUf = d.uf_resolvida || 'N/D';
-              return rowUf === uf && getEtapaByAtividade(d.atividade_atual) === etapa;
-            }).length;
-          });
-
-          const grad = ctx.createLinearGradient(0, 0, 0, 300);
-          const palette = gradientColors[index % gradientColors.length];
-          grad.addColorStop(0, palette[0]);
-          grad.addColorStop(1, palette[1]);
-
-          return {
-            label: etapa,
-            data: dataPoints,
-            backgroundColor: grad,
-            borderRadius: 6,
-            borderWidth: 0,
-            maxBarThickness: 40
-          };
-        });
+      if (isPieLike) {
+        // Para pizza/rosca, soma-se todas as séries por rótulo (não faz sentido múltiplos datasets)
+        const totals = labels.map((_, i) => series.reduce((sum, s) => sum + (s.data[i] || 0), 0));
+        datasets = [{
+          data: totals,
+          backgroundColor: labels.map((_, i) => GRADIENT_PALETTE[i % GRADIENT_PALETTE.length][0]),
+          hoverBackgroundColor: labels.map((_, i) => GRADIENT_PALETTE[i % GRADIENT_PALETTE.length][1]),
+          borderWidth: 2,
+          borderColor: themeSurface
+        }];
       } else {
-        const atividades = ETAPAS_CONFIG[currentStage];
-        datasets = atividades.map((ativ, index) => {
-          const dataPoints = labels.map(uf => {
-            return rawData.filter(d => {
-              const rowUf = d.uf_resolvida || 'N/D';
-              return rowUf === uf && d.atividade_atual === ativ;
-            }).length;
-          });
-
-          const grad = ctx.createLinearGradient(0, 0, 0, 300);
-          const palette = gradientColors[index % gradientColors.length];
+        datasets = series.map((s, index) => {
+          const palette = GRADIENT_PALETTE[index % GRADIENT_PALETTE.length];
+          if (isLine) {
+            return {
+              label: s.label,
+              data: s.data,
+              borderColor: palette[0],
+              backgroundColor: palette[0],
+              pointBackgroundColor: palette[0],
+              pointBorderColor: themeSurface,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              borderWidth: 3,
+              tension: 0.35,
+              fill: false
+            };
+          }
+          const grad = ctx.createLinearGradient(0, 0, isHorizontal ? 300 : 0, isHorizontal ? 0 : 300);
           grad.addColorStop(0, palette[0]);
           grad.addColorStop(1, palette[1]);
-
           return {
-            label: formatLabel(ativ),
-            data: dataPoints,
+            label: s.label,
+            data: s.data,
             backgroundColor: grad,
-            borderRadius: 6,
+            hoverBackgroundColor: palette[0],
+            borderRadius: 8,
+            borderSkipped: false,
             borderWidth: 0,
-            maxBarThickness: 32
+            maxBarThickness: isHorizontal ? 34 : 40
           };
         });
       }
 
-      chartWrapper.style.display = 'block';
-      btnChart.innerHTML = '📊 Ocultar Gráfico';
+      const realType = isPieLike ? chartType : (isLine ? 'line' : 'bar');
 
       if (chartInstance) chartInstance.destroy();
 
       chartInstance = new Chart(ctx, {
-        type: 'bar',
+        type: realType,
         data: { labels, datasets },
         options: {
+          indexAxis: isHorizontal ? 'y' : 'x',
           responsive: true,
           maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
+          interaction: isPieLike ? undefined : { mode: 'index', intersect: false },
+          animation: { duration: 850, easing: 'easeOutQuart' },
           plugins: {
-            legend: { 
+            legend: {
               position: 'top',
-              labels: { 
-                font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' }, 
+              labels: {
+                font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' },
                 usePointStyle: true,
-                padding: 16
+                padding: 16,
+                color: themeTextMuted
               }
             },
             tooltip: {
               titleFont: { family: 'Plus Jakarta Sans', size: 13, weight: '700' },
               bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
               padding: 12,
-              cornerRadius: 8,
-              backgroundColor: 'rgba(0, 0, 0, 0.95)'
+              cornerRadius: 10,
+              backgroundColor: themeSurface,
+              titleColor: themeTooltipText,
+              bodyColor: themeTooltipText,
+              borderColor: themeGrid,
+              borderWidth: 1,
+              boxPadding: 4
             }
           },
-          scales: {
-            x: { 
-              stacked: true, 
-              grid: { display: false },
-              ticks: { font: { family: 'Plus Jakarta Sans', weight: '600' } }
-            },
-            y: { 
-              stacked: true, 
-              border: { display: false }, 
-              grid: { color: 'rgba(255, 255, 255, 0.08)' },
-              beginAtZero: true 
-            }
-          }
+          scales: getChartScalesConfig(chartType, themeGrid, themeTextMuted)
         }
       });
 
-      chartWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      renderDonutChart(themeSurface, themeTooltipText, themeGrid, themeTextMuted);
+    }
+
+    if (selChartGroup) selChartGroup.addEventListener('change', renderMainChart);
+    if (selChartType) selChartType.addEventListener('change', renderMainChart);
+
+    /* Mini gráfico de rosca: proporção de processos sobrestados x regulares,
+       com o percentual de sobrestados desenhado no centro do anel. */
+    function renderDonutChart(themeSurface, themeTooltipText, themeGrid, themeTextMuted) {
+      const donutCanvas = document.getElementById('proc-chart-donut');
+      const legendBox = document.getElementById('proc-chart-side-legend');
+      if (!donutCanvas) return;
+
+      const totalCount = rawData.length;
+      const sobrestadoCount = rawData.filter(d => d.is_sobrestrado).length;
+      const regularCount = totalCount - sobrestadoCount;
+      const pct = totalCount > 0 ? Math.round((sobrestadoCount / totalCount) * 100) : 0;
+
+      if (donutInstance) donutInstance.destroy();
+      const donutCtx = donutCanvas.getContext('2d');
+
+      const centerTextPlugin = {
+        id: 'centerText',
+        afterDraw(chart) {
+          const { ctx: c, chartArea } = chart;
+          if (!chartArea) return;
+          const cx = (chartArea.left + chartArea.right) / 2;
+          const cy = (chartArea.top + chartArea.bottom) / 2;
+          c.save();
+          c.textAlign = 'center';
+          c.textBaseline = 'middle';
+          c.fillStyle = themeTooltipText;
+          c.font = '800 1.5rem "Plus Jakarta Sans", sans-serif';
+          c.fillText(`${pct}%`, cx, cy - 8);
+          c.font = '700 0.7rem "Plus Jakarta Sans", sans-serif';
+          c.fillStyle = themeTextMuted;
+          c.fillText('sobrestados', cx, cy + 14);
+          c.restore();
+        }
+      };
+
+      donutInstance = new Chart(donutCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Regulares', 'Sobrestados'],
+          datasets: [{
+            data: [regularCount, sobrestadoCount],
+            backgroundColor: ['#10B981', '#EF4444'],
+            hoverBackgroundColor: ['#059669', '#B91C1C'],
+            borderWidth: 3,
+            borderColor: themeSurface
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '72%',
+          animation: { duration: 850, easing: 'easeOutQuart' },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: themeSurface,
+              titleColor: themeTooltipText,
+              bodyColor: themeTooltipText,
+              borderColor: themeGrid,
+              borderWidth: 1,
+              padding: 10,
+              cornerRadius: 8
+            }
+          }
+        },
+        plugins: [centerTextPlugin]
+      });
+
+      if (legendBox) {
+        legendBox.innerHTML = `
+          <div class="proc-chart-side-legend-item">
+            <span class="proc-chart-side-legend-dot" style="background:#10B981;"></span>
+            Regulares <span class="proc-chart-legend-num">${regularCount}</span>
+          </div>
+          <div class="proc-chart-side-legend-item">
+            <span class="proc-chart-side-legend-dot" style="background:#EF4444;"></span>
+            Sobrestados <span class="proc-chart-legend-num">${sobrestadoCount}</span>
+          </div>
+        `;
+      }
     }
 
     function hideChart() {
       chartWrapper.style.display = 'none';
       btnChart.innerHTML = '📊 Mostrar Gráfico';
     }
+
+    /* ================================================================
+       EXPORTAÇÃO DO GRÁFICO EM PDF (ALTA RESOLUÇÃO)
+       ================================================================ */
+    async function exportChartToPdf() {
+      if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
+        showToast('Não foi possível carregar as bibliotecas de exportação em PDF. Verifique sua conexão.', 'error');
+        return;
+      }
+      if (!chartInstance) {
+        showToast('Gere um gráfico antes de exportar para PDF.', 'warning');
+        return;
+      }
+
+      const chartCard = chartWrapper;
+      const originalLabel = btnExportChartPdf.querySelector('span') ? btnExportChartPdf.querySelector('span').textContent : '';
+      btnExportChartPdf.disabled = true;
+      if (btnExportChartPdf.querySelector('span')) btnExportChartPdf.querySelector('span').textContent = 'Gerando PDF...';
+
+      const footerDateEl = document.getElementById('proc-chart-pdf-footer-date');
+      if (footerDateEl) {
+        footerDateEl.textContent = `Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+      }
+
+      chartCard.classList.add('proc-chart-capturing');
+
+      try {
+        // pequena espera para garantir que a UI (ocultar controles) já foi repintada antes da captura
+        await new Promise(resolve => setTimeout(resolve, 60));
+
+        const bgColor = getComputedStyle(appRoot).getPropertyValue('--proc-surface-card').trim();
+        const canvas = await html2canvas(chartCard, {
+          scale: 3, // alta resolução (HD)
+          backgroundColor: bgColor && bgColor.startsWith('rgba') === false ? bgColor : (appRoot.classList.contains('theme-dark') ? '#181818' : '#ffffff'),
+          useCORS: true,
+          logging: false
+        });
+
+        const imgData = canvas.toDataURL('image/png', 1.0);
+        const { jsPDF } = window.jspdf;
+
+        const isLandscape = canvas.width >= canvas.height;
+        const pdf = new jsPDF({
+          orientation: isLandscape ? 'landscape' : 'portrait',
+          unit: 'pt',
+          format: 'a4'
+        });
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 24;
+        const maxW = pageWidth - margin * 2;
+        const maxH = pageHeight - margin * 2;
+        const ratio = Math.min(maxW / canvas.width, maxH / canvas.height);
+        const imgW = canvas.width * ratio;
+        const imgH = canvas.height * ratio;
+        const offsetX = (pageWidth - imgW) / 2;
+        const offsetY = (pageHeight - imgH) / 2;
+
+        pdf.addImage(imgData, 'PNG', offsetX, offsetY, imgW, imgH, undefined, 'FAST');
+
+        const dateSlug = new Date().toISOString().slice(0, 10);
+        pdf.save(`grafico-processos-${dateSlug}.pdf`);
+        showToast('PDF do gráfico gerado com sucesso!', 'success');
+      } catch (err) {
+        console.error('Erro ao gerar PDF do gráfico:', err);
+        showToast('Não foi possível gerar o PDF. Tente novamente.', 'error');
+      } finally {
+        chartCard.classList.remove('proc-chart-capturing');
+        btnExportChartPdf.disabled = false;
+        if (btnExportChartPdf.querySelector('span')) btnExportChartPdf.querySelector('span').textContent = originalLabel || 'Baixar PDF (HD)';
+      }
+    }
+
+    if (btnExportChartPdf) btnExportChartPdf.addEventListener('click', exportChartToPdf);
 
     btnChart.addEventListener('click', toggleChart);
     if (btnCloseChart) btnCloseChart.addEventListener('click', hideChart);
@@ -2020,7 +2851,42 @@
         });
       });
 
+      const globalTerm = (inpGlobalSearch && inpGlobalSearch.value || '').toLowerCase().trim();
+      if (globalTerm) {
+        filtered = filtered.filter(row => {
+          const combo = [
+            row.processo, row.nome, row.cpf, row.imovel_resolvido,
+            row.municipio_resolvido, row.uf_resolvida, row.atividade_atual,
+            row.cnpj_ater, getEtapaByAtividade(row.atividade_atual)
+          ].filter(Boolean).join(' ').toLowerCase();
+          return combo.includes(globalTerm);
+        });
+      }
+
       renderTable(filtered);
+    }
+
+    if (inpGlobalSearch) {
+      let globalSearchDebounce = null;
+      inpGlobalSearch.addEventListener('input', () => {
+        clearTimeout(globalSearchDebounce);
+        globalSearchDebounce = setTimeout(applyColumnFilters, 250);
+      });
+    }
+
+    if (btnClearFilters) {
+      btnClearFilters.addEventListener('click', () => {
+        colFilters.forEach(input => input.value = '');
+        if (inpGlobalSearch) inpGlobalSearch.value = '';
+        activeImovelFilter = null;
+        activeMunicipioFilter = null;
+        if (typeof locFilterBtn !== 'undefined' && locFilterBtn) {
+          locFilterBtn.classList.remove('pfd-active');
+          locFilterBtn.textContent = '▼';
+        }
+        applyColumnFilters();
+        showToast('Filtros limpos.', 'info');
+      });
     }
 
     let colFilterDebounceTimer = null;
@@ -2341,8 +3207,33 @@
       }, 5000);
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        fetchProcessos(true);
+    document.addEventListener('DOMContentLoaded', async () => {
+        const releaseInitLock = () => {
+          if (initOverlay) {
+            initOverlay.classList.add('proc-init-hidden');
+            setTimeout(() => { initOverlay.style.display = 'none'; }, 420);
+          }
+        };
+
+        const cached = await loadCacheFromStorage();
+
+        if (cached && isSameLocalDay(cached.savedAt)) {
+          // Ainda estamos no mesmo dia da última atualização: usa o cache local
+          // e NÃO faz nenhuma requisição ao Supabase.
+          memoryCache = cached.memoryCache || {};
+          updateLastSyncLabel(cached.savedAt);
+          Promise.resolve(fetchProcessos(false))
+            .catch(() => {})
+            .finally(() => {
+              releaseInitLock();
+              showToast('Dados carregados do cache local (já atualizados hoje). Clique em "Atualizar Banco" para forçar uma nova busca.', 'info');
+            });
+        } else {
+          // Sem cache ou cache de um dia anterior: busca do banco uma vez e salva.
+          Promise.resolve(fetchProcessos(true))
+            .catch(() => {})
+            .finally(releaseInitLock);
+        }
     });
 
   })();
