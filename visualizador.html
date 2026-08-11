@@ -976,6 +976,7 @@
   }
   .proc-chart-donut-container { position: relative; width: 100%; max-width: 220px; height: 220px; }
   .proc-chart-side-legend { display: flex; flex-direction: column; gap: 0.5rem; width: 100%; }
+  .proc-chart-side-legend.proc-chart-side-legend-scroll { max-height: 220px; overflow-y: auto; padding-right: 4px; }
   .proc-chart-side-legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 700; color: var(--proc-text-main); }
   .proc-chart-side-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
   .proc-chart-side-legend-item span.proc-chart-legend-num { margin-left: auto; color: var(--proc-text-muted); font-weight: 800; }
@@ -1345,127 +1346,7 @@
     .proc-page-header { flex-direction: column; align-items: flex-start; }
   }
 
-  /* Container do Cabeçalho com Botão de Filtro */
-.th-filter-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  position: relative;
-}
-
-/* Botão da Setinha no Cabeçalho */
-.btn-excel-filter {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 0.75rem;
-  padding: 2px 4px;
-  border-radius: 4px;
-  color: currentColor;
-  transition: background-color 0.2s, color 0.2s;
-}
-
-.btn-excel-filter:hover,
-.btn-excel-filter.active-filter {
-  background-color: rgba(0, 123, 255, 0.15);
-  color: #007bff;
-}
-
-/* Menu Popover Estilo Excel */
-.excel-popover {
-  display: none;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 1050;
-  width: 240px;
-  background-color: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 10px;
-  font-size: 0.85rem;
-  color: #333333;
-  text-align: left;
-}
-
-.excel-popover.show {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.excel-search-input {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid #cccccc;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  box-sizing: border-box;
-}
-
-.excel-options-list {
-  max-height: 160px;
-  overflow-y: auto;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background-color: #f9fafb;
-}
-
-.excel-option-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  user-select: none;
-  font-weight: normal;
-  word-break: break-word;
-}
-
-.excel-option-item input[type="checkbox"] {
-  cursor: pointer;
-}
-
-.excel-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.excel-btn {
-  padding: 4px 10px;
-  font-size: 0.75rem;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.excel-btn-primary {
-  background-color: #007bff;
-  color: #ffffff;
-}
-
-.excel-btn-primary:hover {
-  background-color: #0056b3;
-}
-
-.excel-btn-secondary {
-  background-color: #e5e7eb;
-  color: #374151;
-}
-
-.excel-btn-secondary:hover {
-  background-color: #d1d5db;
-}
-
-/* ================================================================
+  /* ================================================================
    FILTRO ESTILO EXCEL — FAZENDA/IMÓVEL e MUNICÍPIO
    ================================================================ */
 .proc-arrow-filterable {
@@ -1763,6 +1644,7 @@
     let rawData = [];
     let chartInstance = null; 
     let donutInstance = null;
+    let lastDonutData = null; // { labels, counts, colors, total, sobrestados } — dados completos de TODOS os estados, para o PDF
     let memoryCache = {};
 
     /* ================================================================
@@ -1838,18 +1720,6 @@
         console.warn('Cache local indisponível ou corrompido, ignorando:', e);
         return null;
       }
-    }
-
-    async function clearCacheStorage() {
-      try {
-        const db = await openCacheDB();
-        await new Promise((resolve, reject) => {
-          const tx = db.transaction(CACHE_STORE_NAME, 'readwrite');
-          tx.objectStore(CACHE_STORE_NAME).delete(CACHE_RECORD_ID);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-        });
-      } catch (e) {}
     }
 
     function updateLastSyncLabel(isoDateStr) {
@@ -2594,7 +2464,7 @@
             data: s.data,
             backgroundColor: grad,
             hoverBackgroundColor: palette[0],
-            borderRadius: 8,
+            borderRadius: 0,
             borderSkipped: false,
             borderWidth: 0,
             maxBarThickness: isHorizontal ? 34 : 40
@@ -2613,6 +2483,7 @@
           indexAxis: isHorizontal ? 'y' : 'x',
           responsive: true,
           maintainAspectRatio: false,
+          devicePixelRatio: Math.max(3, window.devicePixelRatio || 1),
           interaction: isPieLike ? undefined : { mode: 'index', intersect: false },
           animation: { duration: 850, easing: 'easeOutQuart' },
           plugins: {
@@ -2648,8 +2519,9 @@
     if (selChartGroup) selChartGroup.addEventListener('change', renderMainChart);
     if (selChartType) selChartType.addEventListener('change', renderMainChart);
 
-    /* Mini gráfico de rosca: proporção de processos sobrestados x regulares,
-       com o percentual de sobrestados desenhado no centro do anel. */
+    /* Mini gráfico de rosca ao lado do gráfico principal.
+       - Na Visão Geral: mostra os totais de processos divididos por estado (UF).
+       - Nas etapas (Estadual / Federal / Financeira): mostra o TOTAL da etapa e os Sobrestados. */
     function renderDonutChart(themeSurface, themeTooltipText, themeGrid, themeTextMuted) {
       const donutCanvas = document.getElementById('proc-chart-donut');
       const legendBox = document.getElementById('proc-chart-side-legend');
@@ -2657,76 +2529,94 @@
 
       const totalCount = rawData.length;
       const sobrestadoCount = rawData.filter(d => d.is_sobrestrado).length;
-      const regularCount = totalCount - sobrestadoCount;
-      const pct = totalCount > 0 ? Math.round((sobrestadoCount / totalCount) * 100) : 0;
 
       if (donutInstance) donutInstance.destroy();
       const donutCtx = donutCanvas.getContext('2d');
 
-      const centerTextPlugin = {
-        id: 'centerText',
-        afterDraw(chart) {
-          const { ctx: c, chartArea } = chart;
-          if (!chartArea) return;
-          const cx = (chartArea.left + chartArea.right) / 2;
-          const cy = (chartArea.top + chartArea.bottom) / 2;
-          c.save();
-          c.textAlign = 'center';
-          c.textBaseline = 'middle';
-          c.fillStyle = themeTooltipText;
-          c.font = '800 1.5rem "Plus Jakarta Sans", sans-serif';
-          c.fillText(`${pct}%`, cx, cy - 8);
-          c.font = '700 0.7rem "Plus Jakarta Sans", sans-serif';
-          c.fillStyle = themeTextMuted;
-          c.fillText('sobrestados', cx, cy + 14);
-          c.restore();
-        }
-      };
+      {
+        // ---- DIVISÃO DOS TOTAIS POR ESTADO (UF), EM QUALQUER ABA/ETAPA ----
+        const ufCounts = {};
+        rawData.forEach(d => {
+          const uf = d.uf_resolvida || 'N/D';
+          ufCounts[uf] = (ufCounts[uf] || 0) + 1;
+        });
+        const ufLabels = Object.keys(ufCounts).sort((a, b) => ufCounts[b] - ufCounts[a]);
+        const ufData = ufLabels.map(uf => ufCounts[uf]);
+        const ufColors = ufLabels.map((_, i) => GRADIENT_PALETTE[i % GRADIENT_PALETTE.length][0]);
+        const ufHoverColors = ufLabels.map((_, i) => GRADIENT_PALETTE[i % GRADIENT_PALETTE.length][1]);
 
-      donutInstance = new Chart(donutCtx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Regulares', 'Sobrestados'],
-          datasets: [{
-            data: [regularCount, sobrestadoCount],
-            backgroundColor: ['#10B981', '#EF4444'],
-            hoverBackgroundColor: ['#059669', '#B91C1C'],
-            borderWidth: 3,
-            borderColor: themeSurface
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '72%',
-          animation: { duration: 850, easing: 'easeOutQuart' },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: themeSurface,
-              titleColor: themeTooltipText,
-              bodyColor: themeTooltipText,
-              borderColor: themeGrid,
-              borderWidth: 1,
-              padding: 10,
-              cornerRadius: 8
-            }
+        const centerTextPlugin = {
+          id: 'centerText',
+          afterDraw(chart) {
+            const { ctx: c, chartArea } = chart;
+            if (!chartArea) return;
+            const cx = (chartArea.left + chartArea.right) / 2;
+            const cy = (chartArea.top + chartArea.bottom) / 2;
+            c.save();
+            c.textAlign = 'center';
+            c.textBaseline = 'middle';
+            c.fillStyle = themeTooltipText;
+            c.font = '800 1.4rem "Plus Jakarta Sans", sans-serif';
+            c.fillText(`${totalCount}`, cx, cy - 8);
+            c.font = '700 0.7rem "Plus Jakarta Sans", sans-serif';
+            c.fillStyle = themeTextMuted;
+            c.fillText('total geral', cx, cy + 14);
+            c.restore();
           }
-        },
-        plugins: [centerTextPlugin]
-      });
+        };
 
-      if (legendBox) {
-        legendBox.innerHTML = `
-          <div class="proc-chart-side-legend-item">
-            <span class="proc-chart-side-legend-dot" style="background:#10B981;"></span>
-            Regulares <span class="proc-chart-legend-num">${regularCount}</span>
-          </div>
-          <div class="proc-chart-side-legend-item">
-            <span class="proc-chart-side-legend-dot" style="background:#EF4444;"></span>
-            Sobrestados <span class="proc-chart-legend-num">${sobrestadoCount}</span>
-          </div>
-        `;
+        donutInstance = new Chart(donutCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ufLabels,
+            datasets: [{
+              data: ufData,
+              backgroundColor: ufColors,
+              hoverBackgroundColor: ufHoverColors,
+              borderWidth: 3,
+              borderColor: themeSurface
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            devicePixelRatio: Math.max(3, window.devicePixelRatio || 1),
+            cutout: '72%',
+            animation: { duration: 850, easing: 'easeOutQuart' },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: themeSurface,
+                titleColor: themeTooltipText,
+                bodyColor: themeTooltipText,
+                borderColor: themeGrid,
+                borderWidth: 1,
+                padding: 10,
+                cornerRadius: 8
+              }
+            }
+          },
+          plugins: [centerTextPlugin]
+        });
+
+        if (legendBox) {
+          legendBox.classList.add('proc-chart-side-legend-scroll');
+          legendBox.innerHTML = ufLabels.map((uf, i) => `
+            <div class="proc-chart-side-legend-item">
+              <span class="proc-chart-side-legend-dot" style="background:${ufColors[i]};"></span>
+              ${uf} <span class="proc-chart-legend-num">${ufCounts[uf]}</span>
+            </div>
+          `).join('');
+        }
+
+        // Guarda os dados completos (todos os estados, sem corte de scroll) para uso no PDF
+        lastDonutData = {
+          labels: ufLabels,
+          counts: ufData,
+          colors: ufColors,
+          total: totalCount,
+          sobrestados: sobrestadoCount
+        };
       }
     }
 
@@ -2736,73 +2626,182 @@
     }
 
     /* ================================================================
-       EXPORTAÇÃO DO GRÁFICO EM PDF (ALTA RESOLUÇÃO)
+       EXPORTAÇÃO DO GRÁFICO EM PDF — RELATÓRIO COMPLETO (MULTI-PÁGINA)
+       Monta um relatório separado (fora da tela) com cabeçalho, cartões
+       de estatísticas, o gráfico principal, o gráfico de rosca e uma
+       tabela com TODOS os estados (sem cortes de scroll), distribuindo
+       o conteúdo em quantas páginas A4 forem necessárias.
        ================================================================ */
+    const PDF_BRAND = { blue: '#0EA5E9', blueDark: '#0369A1', ink: '#0C4A6E', muted: '#64748B', line: '#E2E8F0', bg: '#F8FAFC' };
+
+    function pdfBuildHiddenRoot() {
+      const root = document.createElement('div');
+      root.id = 'proc-pdf-build-root';
+      root.style.cssText = 'position:fixed; left:-99999px; top:0; width:900px; background:#FFFFFF; font-family:"Plus Jakarta Sans", system-ui, sans-serif; color:' + PDF_BRAND.ink + ';';
+      document.body.appendChild(root);
+      return root;
+    }
+
+    function pdfSectionHeader(title, subtitle, tag) {
+      return `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:22px 26px; background:linear-gradient(120deg, #E0F2FE 0%, #F0F9FF 60%, #FFFFFF 100%); border-radius:14px; border:1px solid ${PDF_BRAND.line}; margin-bottom:18px;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="width:44px; height:44px; border-radius:12px; background:${PDF_BRAND.blue}; display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff; flex-shrink:0;">📊</div>
+            <div>
+              <div style="font-size:18px; font-weight:800; color:${PDF_BRAND.ink}; letter-spacing:-0.01em;">${title}</div>
+              <div style="font-size:11.5px; font-weight:600; color:${PDF_BRAND.muted}; margin-top:2px;">${subtitle}</div>
+            </div>
+          </div>
+          ${tag ? `<div style="background:${PDF_BRAND.blue}22; border:1px solid ${PDF_BRAND.blue}; color:${PDF_BRAND.blueDark}; font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; padding:6px 14px; border-radius:999px; white-space:nowrap;">${tag}</div>` : ''}
+        </div>`;
+    }
+
+    function pdfStatCard(label, value, color) {
+      return `
+        <div style="flex:1; min-width:0; background:#FFFFFF; border:1px solid ${PDF_BRAND.line}; border-top:3px solid ${color}; border-radius:12px; padding:14px 16px;">
+          <div style="font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:${PDF_BRAND.muted}; margin-bottom:6px;">${label}</div>
+          <div style="font-size:22px; font-weight:900; color:${PDF_BRAND.ink};">${value}</div>
+        </div>`;
+    }
+
+    function pdfFooter(pageLabel, generatedAt) {
+      return `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 4px 0 4px; margin-top:18px; border-top:1px solid ${PDF_BRAND.line}; font-size:10px; font-weight:700; color:${PDF_BRAND.muted};">
+          <span>Visualizador de Processos — Relatório Analítico</span>
+          <span>${generatedAt} · ${pageLabel}</span>
+        </div>`;
+    }
+
+    // Renderiza um elemento HTML fora da tela e retorna o canvas capturado (alta resolução)
+    async function pdfCaptureHTML(innerHTML, widthPx) {
+      const root = pdfBuildHiddenRoot();
+      root.style.width = widthPx + 'px';
+      root.style.padding = '28px';
+      root.innerHTML = innerHTML;
+      // aguarda pintura
+      await new Promise(resolve => setTimeout(resolve, 40));
+      const canvas = await html2canvas(root, {
+        scale: 3.2,
+        backgroundColor: '#FFFFFF',
+        useCORS: true,
+        logging: false
+      });
+      document.body.removeChild(root);
+      return canvas;
+    }
+
+    // Adiciona um canvas inteiro em UMA página do PDF, ajustado (fit) dentro da área útil
+    function pdfAddFittedPage(pdf, canvas, isFirstPage, margin) {
+      if (!isFirstPage) pdf.addPage();
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const maxW = pageWidth - margin * 2;
+      const maxH = pageHeight - margin * 2;
+      const ratio = Math.min(maxW / canvas.width, maxH / canvas.height);
+      const imgW = canvas.width * ratio;
+      const imgH = canvas.height * ratio;
+      const offsetX = (pageWidth - imgW) / 2;
+      const offsetY = margin;
+      pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', offsetX, offsetY, imgW, imgH, undefined, 'FAST');
+    }
+
     async function exportChartToPdf() {
       if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
         showToast('Não foi possível carregar as bibliotecas de exportação em PDF. Verifique sua conexão.', 'error');
         return;
       }
-      if (!chartInstance) {
+      if (!chartInstance || !rawData || rawData.length === 0) {
         showToast('Gere um gráfico antes de exportar para PDF.', 'warning');
         return;
       }
 
-      const chartCard = chartWrapper;
       const originalLabel = btnExportChartPdf.querySelector('span') ? btnExportChartPdf.querySelector('span').textContent : '';
       btnExportChartPdf.disabled = true;
       if (btnExportChartPdf.querySelector('span')) btnExportChartPdf.querySelector('span').textContent = 'Gerando PDF...';
 
-      const footerDateEl = document.getElementById('proc-chart-pdf-footer-date');
-      if (footerDateEl) {
-        footerDateEl.textContent = `Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-      }
-
-      chartCard.classList.add('proc-chart-capturing');
-
       try {
-        // pequena espera para garantir que a UI (ocultar controles) já foi repintada antes da captura
-        await new Promise(resolve => setTimeout(resolve, 60));
+        const now = new Date();
+        const generatedAt = `Gerado em ${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
 
-        const bgColor = getComputedStyle(appRoot).getPropertyValue('--proc-surface-card').trim();
-        const canvas = await html2canvas(chartCard, {
-          scale: 3, // alta resolução (HD)
-          backgroundColor: bgColor && bgColor.startsWith('rgba') === false ? bgColor : (appRoot.classList.contains('theme-dark') ? '#181818' : '#ffffff'),
-          useCORS: true,
-          logging: false
-        });
+        const groupBy = selChartGroup ? selChartGroup.value : 'uf';
+        const chartType = selChartType ? selChartType.value : 'stackedBar';
+        const stageLabelMap = { GERAL: 'Visão Geral', ESTADUAL: 'Etapa Estadual', FEDERAL: 'Etapa Federal', FINANCEIRA: 'Etapa Financeira' };
+        const stageLabel = stageLabelMap[currentStage] || currentStage;
+        const ufSelecionada = selUf.value ? selUf.value : 'Todos os Estados';
 
-        const imgData = canvas.toDataURL('image/png', 1.0);
+        const totalGeral = rawData.length;
+        const sobrestadosTotal = rawData.filter(d => d.is_sobrestrado).length;
+        const donut = lastDonutData || { labels: [], counts: [], colors: [], total: totalGeral, sobrestados: sobrestadosTotal };
+        const qtdEstados = donut.labels.length;
+
+        const mainChartImg = chartInstance.toBase64Image('image/png', 1.0);
+        const donutChartImg = donutInstance ? donutInstance.toBase64Image('image/png', 1.0) : '';
+
+        /* ---------- SEÇÃO 1: Cabeçalho + Estatísticas + Gráfico Principal ---------- */
+        const section1HTML = `
+          ${pdfSectionHeader('Resumo Analítico de Processos', `Agrupado por ${CHART_GROUP_LABELS[groupBy] || groupBy} · ${CHART_TYPE_LABELS[chartType] || chartType} · Filtro de UF: ${ufSelecionada}`, stageLabel)}
+          <div style="display:flex; gap:12px; margin-bottom:18px;">
+            ${pdfStatCard('Total Geral de Processos', totalGeral.toLocaleString('pt-BR'), '#0EA5E9')}
+            ${pdfStatCard('Estados Representados', qtdEstados, '#8B5CF6')}
+            ${pdfStatCard('Processos Sobrestados', sobrestadosTotal.toLocaleString('pt-BR'), '#EF4444')}
+            ${pdfStatCard('Etapa Selecionada', stageLabel, '#10B981')}
+          </div>
+          <div style="background:#FFFFFF; border:1px solid ${PDF_BRAND.line}; border-radius:14px; padding:16px;">
+            <div style="font-size:13px; font-weight:800; color:${PDF_BRAND.ink}; margin-bottom:10px;">Distribuição por ${CHART_GROUP_LABELS[groupBy] || groupBy}</div>
+            <img src="${mainChartImg}" style="width:100%; display:block;">
+          </div>
+        `;
+
+        /* ---------- SEÇÃO 2: Gráfico de rosca + TODOS os estados (tabela completa) ---------- */
+        // divide a lista completa de estados em 3 colunas para caber tudo sem cortes
+        const perCol = Math.ceil(donut.labels.length / 3) || 1;
+        const cols = [[], [], []];
+        donut.labels.forEach((uf, i) => { cols[Math.floor(i / perCol)].push(i); });
+        const legendColsHTML = cols.map(idxArr => `
+          <div style="flex:1; min-width:0;">
+            ${idxArr.map(i => `
+              <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-bottom:1px solid ${PDF_BRAND.line}; font-size:11.5px;">
+                <span style="width:9px; height:9px; border-radius:3px; background:${donut.colors[i]}; flex-shrink:0;"></span>
+                <span style="font-weight:800; color:${PDF_BRAND.ink}; min-width:30px;">${donut.labels[i]}</span>
+                <span style="margin-left:auto; font-weight:800; color:${PDF_BRAND.muted};">${donut.counts[i].toLocaleString('pt-BR')}</span>
+                <span style="font-weight:600; color:${PDF_BRAND.muted}; min-width:40px; text-align:right;">${donut.total > 0 ? ((donut.counts[i] / donut.total) * 100).toFixed(1) : '0.0'}%</span>
+              </div>`).join('')}
+          </div>`).join('');
+
+        const section2HTML = `
+          <div style="margin-top:18px; background:#FFFFFF; border:1px solid ${PDF_BRAND.line}; border-radius:14px; padding:16px;">
+            <div style="font-size:13px; font-weight:800; color:${PDF_BRAND.ink}; margin-bottom:2px;">Distribuição completa por Estado (UF)</div>
+            <div style="font-size:11px; font-weight:600; color:${PDF_BRAND.muted}; margin-bottom:12px;">Todos os ${qtdEstados} estados com processos localizados</div>
+            <div style="display:flex; gap:18px; align-items:stretch;">
+              <div style="flex:0 0 220px; display:flex; align-items:center; justify-content:center; background:${PDF_BRAND.bg}; border:1px solid ${PDF_BRAND.line}; border-radius:12px; padding:14px;">
+                <img src="${donutChartImg}" style="width:100%; max-width:195px; display:block;">
+              </div>
+              <div style="flex:1; min-width:0; display:flex; gap:14px;">
+                ${legendColsHTML}
+              </div>
+            </div>
+          </div>
+          ${pdfFooter('Página 1 de 1', generatedAt)}
+        `;
+
+        const combinedHTML = section1HTML + section2HTML;
+        const canvas1 = await pdfCaptureHTML(combinedHTML, 900);
+
         const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+        const margin = 26;
 
-        const isLandscape = canvas.width >= canvas.height;
-        const pdf = new jsPDF({
-          orientation: isLandscape ? 'landscape' : 'portrait',
-          unit: 'pt',
-          format: 'a4'
-        });
+        pdfAddFittedPage(pdf, canvas1, true, margin);
 
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const margin = 24;
-        const maxW = pageWidth - margin * 2;
-        const maxH = pageHeight - margin * 2;
-        const ratio = Math.min(maxW / canvas.width, maxH / canvas.height);
-        const imgW = canvas.width * ratio;
-        const imgH = canvas.height * ratio;
-        const offsetX = (pageWidth - imgW) / 2;
-        const offsetY = (pageHeight - imgH) / 2;
-
-        pdf.addImage(imgData, 'PNG', offsetX, offsetY, imgW, imgH, undefined, 'FAST');
-
-        const dateSlug = new Date().toISOString().slice(0, 10);
-        pdf.save(`grafico-processos-${dateSlug}.pdf`);
-        showToast('PDF do gráfico gerado com sucesso!', 'success');
+        const dateSlug = now.toISOString().slice(0, 10);
+        pdf.save(`relatorio-processos-${dateSlug}.pdf`);
+        showToast('PDF do relatório gerado com sucesso!', 'success');
       } catch (err) {
         console.error('Erro ao gerar PDF do gráfico:', err);
         showToast('Não foi possível gerar o PDF. Tente novamente.', 'error');
+        const orphan = document.getElementById('proc-pdf-build-root');
+        if (orphan) orphan.remove();
       } finally {
-        chartCard.classList.remove('proc-chart-capturing');
         btnExportChartPdf.disabled = false;
         if (btnExportChartPdf.querySelector('span')) btnExportChartPdf.querySelector('span').textContent = originalLabel || 'Baixar PDF (HD)';
       }
@@ -2923,15 +2922,14 @@
     let allMunicipioValues = [];
 
     function getUniqueSortedValues(field, fallback) {
-  // Alterar para usar rawData em vez de memoryCache['GERAL_TODOS']
-  const base = rawData || [];
-  const set = new Set();
-  base.forEach(row => {
-    const val = row[field] || fallback;
-    if (val) set.add(val);
-  });
-  return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-}
+      const base = rawData || [];
+      const set = new Set();
+      base.forEach(row => {
+        const val = row[field] || fallback;
+        if (val) set.add(val);
+      });
+      return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    }
 
     function buildChecklist(listEl, values, checkedSet, searchTerm, onToggle) {
       listEl.innerHTML = '';
