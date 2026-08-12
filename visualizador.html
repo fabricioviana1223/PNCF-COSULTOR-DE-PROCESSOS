@@ -45,6 +45,11 @@
 
   <!-- SELETOR DE ETAPAS -->
   <div class="proc-card proc-stage-bar">
+    <button class="proc-stage-btn" data-stage="INICIAL" style="--stage-color:#8B5CF6">
+      <span class="proc-stage-icon">📝</span>
+      <span>Etapa Inicial</span>
+      <span class="proc-stage-count" id="stage-count-inicial">0</span>
+    </button>
     <button class="proc-stage-btn" data-stage="ESTADUAL" style="--stage-color:#F59E0B">
       <span class="proc-stage-icon">🏛️</span>
       <span>Etapa Estadual</span>
@@ -278,11 +283,17 @@
               <input type="text" class="proc-col-filter" data-col="localizacao" placeholder="Filtrar Imóvel/UF...">
             </th>
             <th style="min-width:220px;">
-              <div class="proc-th-title">ATIVIDADE ATUAL</div>
+              <div class="proc-th-title">
+                ATIVIDADE ATUAL
+                <span class="proc-arrow proc-arrow-filterable" id="ativ-filter-btn" title="Filtrar por Atividade Atual">▼</span>
+              </div>
               <input type="text" class="proc-col-filter" data-col="atividade" placeholder="Filtrar Atividade...">
             </th>
             <th style="min-width:130px;">
-              <div class="proc-th-title">ABERTURA</div>
+              <div class="proc-th-title">
+                ABERTURA
+                <span class="proc-arrow proc-arrow-filterable" id="ano-filter-btn" title="Filtrar por Ano de Abertura">▼</span>
+              </div>
               <input type="text" class="proc-col-filter" data-col="abertura" placeholder="dd/mm/aaaa">
             </th>
             <th style="min-width:150px;">
@@ -290,7 +301,10 @@
               <input type="text" class="proc-col-filter" data-col="cnpj" placeholder="Filtrar CNPJ...">
             </th>
             <th id="th-etapa" style="min-width:150px; display:none;">
-              <div class="proc-th-title">LOCAL / ETAPA</div>
+              <div class="proc-th-title">
+                LOCAL / ETAPA
+                <span class="proc-arrow proc-arrow-filterable" id="etapa-filter-btn" title="Filtrar por Etapa">▼</span>
+              </div>
               <input type="text" class="proc-col-filter" data-col="etapa" placeholder="Filtrar Etapa...">
             </th>
           </tr>
@@ -353,6 +367,31 @@
   <div class="pfd-footer">
     <button type="button" class="pfd-btn pfd-btn-clear" id="pfd-btn-clear">Limpar Filtro</button>
     <button type="button" class="pfd-btn pfd-btn-apply" id="pfd-btn-apply">Fechar</button>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- PAINEL DE FILTRO ESTILO EXCEL GENÉRICO (ANO / ATIVIDADE / ETAPA)  -->
+<!-- ================================================================= -->
+<div id="proc-generic-filter-dropdown" class="proc-filter-dropdown proc-filter-dropdown-single theme-light">
+  <div class="pfd-header">
+    <span class="pfd-title" id="gfd-title">🔍 Filtrar</span>
+    <button type="button" class="pfd-close" id="gfd-close-btn" title="Fechar">✕</button>
+  </div>
+  <div class="pfd-body">
+    <div class="pfd-section" style="border-left:none; flex:1 1 100%;">
+      <input type="text" class="pfd-search" id="gfd-search" placeholder="Pesquisar...">
+      <div class="pfd-quick-actions">
+        <button type="button" class="pfd-link-btn" id="gfd-check-all">Marcar todos</button>
+        <button type="button" class="pfd-link-btn" id="gfd-uncheck-all">Desmarcar todos</button>
+      </div>
+      <div class="pfd-list" id="gfd-list"></div>
+      <div class="pfd-count" id="gfd-count"></div>
+    </div>
+  </div>
+  <div class="pfd-footer">
+    <button type="button" class="pfd-btn pfd-btn-clear" id="gfd-btn-clear">Limpar Filtro</button>
+    <button type="button" class="pfd-btn pfd-btn-apply" id="gfd-btn-apply">Fechar</button>
   </div>
 </div>
 
@@ -1325,6 +1364,7 @@
   }
 
   /* --- CORES DE ETAPA NAS ABAS --- */
+  .proc-stage-btn[data-stage="INICIAL"].active { border-bottom-color: #8B5CF6; }
   .proc-stage-btn[data-stage="ESTADUAL"].active { border-bottom-color: #F59E0B; }
   .proc-stage-btn[data-stage="FEDERAL"].active { border-bottom-color: #10B981; }
   .proc-stage-btn[data-stage="FINANCEIRA"].active { border-bottom-color: #3B82F6; }
@@ -1380,6 +1420,9 @@
 }
 .proc-filter-dropdown.theme-dark { --proc-modal-solid: #1c1c1c; }
 .proc-filter-dropdown.theme-light { --proc-modal-solid: #ffffff; }
+
+.proc-filter-dropdown-single { width: 320px; }
+.proc-filter-dropdown-single .pfd-body { max-height: 380px; }
 
 .pfd-header {
   display: flex;
@@ -1598,6 +1641,20 @@
 
     /* ── Configuração das Etapas ── */
     const ETAPAS_CONFIG = {
+      INICIAL: [
+        'INFORMAR_DADOS_AVALIACAO_IMOVEL',
+        'INFORMAR_DADOS_DAS_TERRAS',
+        'INFORMAR_DADOS_ESTATISTICOS',
+        'INFORMAR_PROJETO_PRODUTIVO',
+        'INFORMAR_PLANO_ACOMPANHAMENTO_TECNICO',
+        'PREENCHER_DADOS_DA_SOLICITACAO',
+        'INCLUIR_DOCUMENTOS_DO_BENEFICIARIO',
+        'INCLUIR_DOCUMENTOS_DO_IMOVEL',
+        'INCLUIR_DOCUMENTOS_DO_VENDEDOR',
+        'INCLUIR_DOCUMENTOS_DO_FINANCIAMENTO_E_ATER',
+        'INFORMAR_DADOS',
+        'RESUMO_DA_SOLICITACAO'
+      ],
       ESTADUAL: [
         'ASSUMIR_ANALISE_DE_DOCUMENTOS', 
         'ANALISAR_SOLICITACAO_ESTADO', 
@@ -1619,12 +1676,25 @@
     };
     
     ETAPAS_CONFIG.GERAL = [
+      ...ETAPAS_CONFIG.INICIAL,
       ...ETAPAS_CONFIG.ESTADUAL,
       ...ETAPAS_CONFIG.FEDERAL,
       ...ETAPAS_CONFIG.FINANCEIRA
     ];
 
     const DESC_ATIVIDADES = {
+      'INFORMAR_DADOS_AVALIACAO_IMOVEL': 'Onde o solicitante irá informar os dados de avaliação do imóvel.',
+      'INFORMAR_DADOS_DAS_TERRAS': 'Onde o solicitante irá informar os dados das terras.',
+      'INFORMAR_DADOS_ESTATISTICOS': 'Onde o solicitante irá informar os dados estatísticos.',
+      'INFORMAR_PROJETO_PRODUTIVO': 'Onde o solicitante irá informar o projeto produtivo.',
+      'INFORMAR_PLANO_ACOMPANHAMENTO_TECNICO': 'Onde o solicitante irá informar o plano de acompanhamento técnico.',
+      'PREENCHER_DADOS_DA_SOLICITACAO': 'Onde o solicitante irá preencher os dados da solicitação.',
+      'INCLUIR_DOCUMENTOS_DO_BENEFICIARIO': 'Onde o solicitante irá incluir os documentos do beneficiário.',
+      'INCLUIR_DOCUMENTOS_DO_IMOVEL': 'Onde o solicitante irá incluir os documentos do imóvel.',
+      'INCLUIR_DOCUMENTOS_DO_VENDEDOR': 'Onde o solicitante irá incluir os documentos do vendedor.',
+      'INCLUIR_DOCUMENTOS_DO_FINANCIAMENTO_E_ATER': 'Onde o solicitante irá incluir os documentos do financiamento e ATER.',
+      'INFORMAR_DADOS': 'Onde o solicitante irá informar dados gerais da solicitação.',
+      'RESUMO_DA_SOLICITACAO': 'Onde o solicitante irá revisar o resumo da solicitação antes de enviar.',
       'ASSUMIR_ANALISE_DE_DOCUMENTOS': 'Onde um dos analistas estaduais irá assumir a solicitação para analise.',
       'ANALISAR_SOLICITACAO_ESTADO': 'Onde o analista irá fazer a analise dos dados inseridos pelo solicitante.',
       'AJUSTES_DA_SOLICITACAO_ESTADO': 'Onde o solicitante irá corrigir os dados que o analista estadual requisitar.',
@@ -1739,6 +1809,9 @@
     let activeImovelFilter = null;     
     let activeMunicipioFilter = null;  
 
+    /* ── Estado do Filtro Excel-style genérico (Ano Abertura / Atividade / Etapa) ── */
+    let activeGenericFilters = { ano: null, atividade: null, etapa: null };
+
     /* ── DOM Elements ── */
     const appRoot = document.getElementById('proc-app-root');
     const btnToggleTheme = document.getElementById('btn-toggle-theme');
@@ -1763,6 +1836,7 @@
     const inpGlobalSearch = document.getElementById('inp-global-search');
     const btnClearFilters = document.getElementById('btn-clear-filters');
     const statSobrestado = document.getElementById('stat-sobrestado');
+    const stageCountInicial = document.getElementById('stage-count-inicial');
     const stageCountEstadual = document.getElementById('stage-count-estadual');
     const stageCountFederal = document.getElementById('stage-count-federal');
     const stageCountFinanceira = document.getElementById('stage-count-financeira');
@@ -1788,6 +1862,8 @@
         appRoot.classList.add('theme-light');
         pfdPanel.classList.remove('theme-dark');
         pfdPanel.classList.add('theme-light');
+        gfdPanel.classList.remove('theme-dark');
+        gfdPanel.classList.add('theme-light');
         themeBtnText.textContent = 'Modo Escuro';
         document.querySelector('.theme-icon').textContent = '🌙';
         showToast('Modo Claro ativado com sucesso.', 'info');
@@ -1796,6 +1872,8 @@
         appRoot.classList.add('theme-dark');
         pfdPanel.classList.remove('theme-light');
         pfdPanel.classList.add('theme-dark');
+        gfdPanel.classList.remove('theme-light');
+        gfdPanel.classList.add('theme-dark');
         themeBtnText.textContent = 'Modo Claro';
         document.querySelector('.theme-icon').textContent = '🔆';
         showToast('Modo Black ativado.', 'info');
@@ -1803,10 +1881,24 @@
     });
 
     function getEtapaByAtividade(atividade) {
+      if (ETAPAS_CONFIG.INICIAL.includes(atividade)) return 'Etapa Inicial';
       if (ETAPAS_CONFIG.ESTADUAL.includes(atividade)) return 'Etapa Estadual';
       if (ETAPAS_CONFIG.FEDERAL.includes(atividade)) return 'Etapa Federal';
       if (ETAPAS_CONFIG.FINANCEIRA.includes(atividade)) return 'Etapa Financeira';
       return 'Desconhecida';
+    }
+
+    function getAnoAbertura(row) {
+      if (!row || !row.abertura) return 'Não informado';
+      try {
+        const s = String(row.abertura);
+        const datePart = s.split('T')[0];
+        const parts = datePart.split('-');
+        if (parts.length === 3 && parts[0].length === 4) return parts[0];
+        const d = new Date(row.abertura);
+        if (!isNaN(d.getTime())) return String(d.getFullYear());
+      } catch {}
+      return 'Não informado';
     }
 
     function extrairTextoValido(...valores) {
@@ -1898,10 +1990,12 @@
       colFilters.forEach(input => input.value = '');
       activeImovelFilter = null;
       activeMunicipioFilter = null;
+      activeGenericFilters = { ano: null, atividade: null, etapa: null };
       if (typeof locFilterBtn !== 'undefined' && locFilterBtn) {
         locFilterBtn.classList.remove('pfd-active');
         locFilterBtn.textContent = '▼';
       }
+      resetGenericFilterButtons();
 
       let baseDataToFilter = null;
       
@@ -2130,13 +2224,15 @@
       const filtroSobrestado = selFiltroSobrestado.value;
       const base = applySearchFilters(source, buscarTodos, ufSelecionada, filtroSobrestado);
 
-      let estadual = 0, federal = 0, financeira = 0;
+      let inicial = 0, estadual = 0, federal = 0, financeira = 0;
       base.forEach(row => {
         const etapa = getEtapaByAtividade(row.atividade_atual);
-        if (etapa === 'Etapa Estadual') estadual++;
+        if (etapa === 'Etapa Inicial') inicial++;
+        else if (etapa === 'Etapa Estadual') estadual++;
         else if (etapa === 'Etapa Federal') federal++;
         else if (etapa === 'Etapa Financeira') financeira++;
       });
+      animateNumber(stageCountInicial, inicial);
       animateNumber(stageCountEstadual, estadual);
       animateNumber(stageCountFederal, federal);
       animateNumber(stageCountFinanceira, financeira);
@@ -2226,6 +2322,7 @@
             let badgeBg = 'rgba(255,255,255,0.1)';
             let badgeDot = '#94A3B8';
             
+            if(nomeEtapa === 'Etapa Inicial') { badgeBg = 'rgba(139, 92, 246, 0.2)'; badgeDot = '#8B5CF6'; }
             if(nomeEtapa === 'Etapa Estadual') { badgeBg = 'rgba(245, 158, 11, 0.2)'; badgeDot = '#F59E0B'; }
             if(nomeEtapa === 'Etapa Federal') { badgeBg = 'rgba(16, 185, 129, 0.2)'; badgeDot = '#10B981'; }
             if(nomeEtapa === 'Etapa Financeira') { badgeBg = 'rgba(59, 130, 246, 0.2)'; badgeDot = '#3B82F6'; }
@@ -2328,7 +2425,7 @@
           ufCounts[uf] = (ufCounts[uf] || 0) + 1;
         });
         labels = Object.keys(ufCounts).sort((a, b) => ufCounts[b] - ufCounts[a]);
-        const groups = isGeral ? ['Etapa Estadual', 'Etapa Federal', 'Etapa Financeira'] : ETAPAS_CONFIG[currentStage];
+        const groups = isGeral ? ['Etapa Inicial', 'Etapa Estadual', 'Etapa Federal', 'Etapa Financeira'] : ETAPAS_CONFIG[currentStage];
         series = groups.map(g => ({
           label: isGeral ? g : formatLabel(g),
           data: labels.map(uf => rawData.filter(d => {
@@ -2347,7 +2444,7 @@
           { label: 'Sobrestados', data: acts.map(a => rawData.filter(d => d.atividade_atual === a && d.is_sobrestrado).length) }
         ];
       } else if (groupBy === 'etapa') {
-        labels = ['Etapa Estadual', 'Etapa Federal', 'Etapa Financeira'];
+        labels = ['Etapa Inicial', 'Etapa Estadual', 'Etapa Federal', 'Etapa Financeira'];
         series = [
           { label: 'Regulares', data: labels.map(et => rawData.filter(d => getEtapaByAtividade(d.atividade_atual) === et && !d.is_sobrestrado).length) },
           { label: 'Sobrestados', data: labels.map(et => rawData.filter(d => getEtapaByAtividade(d.atividade_atual) === et && d.is_sobrestrado).length) }
@@ -2725,7 +2822,7 @@
 
         const groupBy = selChartGroup ? selChartGroup.value : 'uf';
         const chartType = selChartType ? selChartType.value : 'stackedBar';
-        const stageLabelMap = { GERAL: 'Visão Geral', ESTADUAL: 'Etapa Estadual', FEDERAL: 'Etapa Federal', FINANCEIRA: 'Etapa Financeira' };
+        const stageLabelMap = { GERAL: 'Visão Geral', INICIAL: 'Etapa Inicial', ESTADUAL: 'Etapa Estadual', FEDERAL: 'Etapa Federal', FINANCEIRA: 'Etapa Financeira' };
         const stageLabel = stageLabelMap[currentStage] || currentStage;
         const ufSelecionada = selUf.value ? selUf.value : 'Todos os Estados';
 
@@ -2828,6 +2925,18 @@
         filtered = filtered.filter(row => activeMunicipioFilter.has(row.municipio_resolvido || 'Não informado'));
       }
 
+      if (activeGenericFilters.ano) {
+        filtered = filtered.filter(row => activeGenericFilters.ano.has(getAnoAbertura(row)));
+      }
+
+      if (activeGenericFilters.atividade) {
+        filtered = filtered.filter(row => activeGenericFilters.atividade.has(row.atividade_atual || 'Não informado'));
+      }
+
+      if (activeGenericFilters.etapa) {
+        filtered = filtered.filter(row => activeGenericFilters.etapa.has(getEtapaByAtividade(row.atividade_atual)));
+      }
+
       colFilters.forEach(input => {
         const term = input.value.toLowerCase().trim();
         const col = input.dataset.col;
@@ -2879,10 +2988,12 @@
         if (inpGlobalSearch) inpGlobalSearch.value = '';
         activeImovelFilter = null;
         activeMunicipioFilter = null;
+        activeGenericFilters = { ano: null, atividade: null, etapa: null };
         if (typeof locFilterBtn !== 'undefined' && locFilterBtn) {
           locFilterBtn.classList.remove('pfd-active');
           locFilterBtn.textContent = '▼';
         }
+        resetGenericFilterButtons();
         applyColumnFilters();
         showToast('Filtros limpos.', 'info');
       });
@@ -2931,11 +3042,12 @@
       return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
     }
 
-    function buildChecklist(listEl, values, checkedSet, searchTerm, onToggle) {
+    function buildChecklist(listEl, values, checkedSet, searchTerm, onToggle, displayFormatter) {
       listEl.innerHTML = '';
+      const fmt = typeof displayFormatter === 'function' ? displayFormatter : (v => v);
       const term = (searchTerm || '').toLowerCase().trim();
       const filteredValues = term
-        ? values.filter(v => v.toLowerCase().includes(term))
+        ? values.filter(v => String(fmt(v)).toLowerCase().includes(term))
         : values;
 
       if (filteredValues.length === 0) {
@@ -2958,8 +3070,9 @@
         });
 
         const span = document.createElement('span');
-        span.textContent = val;
-        span.title = val;
+        const displayText = String(fmt(val));
+        span.textContent = displayText;
+        span.title = displayText;
 
         label.appendChild(checkbox);
         label.appendChild(span);
@@ -3093,6 +3206,174 @@
       refreshMunicipioList();
       locFilterBtn.classList.remove('pfd-active');
       locFilterBtn.textContent = '▼';
+      applyColumnFilters();
+    });
+
+    /* ================================================================
+       PAINEL DE FILTRO ESTILO EXCEL GENÉRICO — ANO ABERTURA / ATIVIDADE / ETAPA
+       ================================================================ */
+    const GENERIC_FILTERS = {
+      ano: {
+        title: '🔍 Filtrar por Ano de Abertura',
+        getValue: (row) => getAnoAbertura(row),
+        formatDisplay: (v) => v,
+        btnId: 'ano-filter-btn'
+      },
+      atividade: {
+        title: '🔍 Filtrar por Atividade Atual',
+        getValue: (row) => row.atividade_atual || 'Não informado',
+        formatDisplay: (v) => formatLabel(v),
+        btnId: 'ativ-filter-btn'
+      },
+      etapa: {
+        title: '🔍 Filtrar por Etapa',
+        getValue: (row) => getEtapaByAtividade(row.atividade_atual),
+        formatDisplay: (v) => v,
+        btnId: 'etapa-filter-btn'
+      }
+    };
+
+    const gfdPanel = document.getElementById('proc-generic-filter-dropdown');
+    const gfdTitle = document.getElementById('gfd-title');
+    const gfdCloseBtn = document.getElementById('gfd-close-btn');
+    const gfdBtnApply = document.getElementById('gfd-btn-apply');
+    const gfdBtnClear = document.getElementById('gfd-btn-clear');
+    const gfdList = document.getElementById('gfd-list');
+    const gfdSearch = document.getElementById('gfd-search');
+    const gfdCount = document.getElementById('gfd-count');
+    const gfdCheckAll = document.getElementById('gfd-check-all');
+    const gfdUncheckAll = document.getElementById('gfd-uncheck-all');
+
+    let currentGenericFilterKey = null;
+    let tempGenericChecked = new Set();
+    let allGenericValues = [];
+    let genericFilterDebounceTimer = null;
+
+    function getUniqueSortedValuesGeneric(getValueFn) {
+      const base = rawData || [];
+      const set = new Set();
+      base.forEach(row => {
+        const val = getValueFn(row);
+        if (val) set.add(val);
+      });
+      return Array.from(set).sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
+    }
+
+    function updateGenericBtnState(key) {
+      const cfg = GENERIC_FILTERS[key];
+      if (!cfg) return;
+      const btn = document.getElementById(cfg.btnId);
+      if (!btn) return;
+      const active = !!activeGenericFilters[key];
+      btn.classList.toggle('pfd-active', active);
+      btn.textContent = active ? '⏷' : '▼';
+    }
+
+    function resetGenericFilterButtons() {
+      Object.keys(GENERIC_FILTERS).forEach(updateGenericBtnState);
+    }
+
+    function refreshGenericCount() {
+      gfdCount.textContent = `${tempGenericChecked.size} de ${allGenericValues.length} selecionados`;
+    }
+
+    function refreshGenericList() {
+      const cfg = GENERIC_FILTERS[currentGenericFilterKey];
+      if (!cfg) return;
+      buildChecklist(gfdList, allGenericValues, tempGenericChecked, gfdSearch.value, () => {
+        refreshGenericCount();
+        applyLiveGenericFilter();
+      }, cfg.formatDisplay);
+      refreshGenericCount();
+    }
+
+    function applyLiveGenericFilter() {
+      clearTimeout(genericFilterDebounceTimer);
+      genericFilterDebounceTimer = setTimeout(() => {
+        activeGenericFilters[currentGenericFilterKey] = (tempGenericChecked.size === allGenericValues.length) ? null : new Set(tempGenericChecked);
+        updateGenericBtnState(currentGenericFilterKey);
+        applyColumnFilters();
+      }, 120);
+    }
+
+    function openGenericFilterDropdown(key) {
+      const cfg = GENERIC_FILTERS[key];
+      if (!cfg) return;
+      currentGenericFilterKey = key;
+      gfdTitle.textContent = cfg.title;
+      allGenericValues = getUniqueSortedValuesGeneric(cfg.getValue);
+      tempGenericChecked = activeGenericFilters[key] ? new Set(activeGenericFilters[key]) : new Set(allGenericValues);
+
+      gfdSearch.value = '';
+      refreshGenericList();
+
+      const btn = document.getElementById(cfg.btnId);
+      const rect = btn.getBoundingClientRect();
+      const panelWidth = gfdPanel.offsetWidth || 320;
+      let left = rect.left;
+      if (left + panelWidth > window.innerWidth - 12) {
+        left = Math.max(12, window.innerWidth - panelWidth - 12);
+      }
+      let top = rect.bottom + 6;
+      gfdPanel.style.left = `${left}px`;
+      gfdPanel.style.top = `${top}px`;
+      gfdPanel.style.display = 'block';
+    }
+
+    function closeGenericFilterDropdown() {
+      gfdPanel.style.display = 'none';
+      currentGenericFilterKey = null;
+    }
+
+    Object.keys(GENERIC_FILTERS).forEach(key => {
+      const cfg = GENERIC_FILTERS[key];
+      const btn = document.getElementById(cfg.btnId);
+      if (!btn) return;
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (gfdPanel.style.display === 'block' && currentGenericFilterKey === key) {
+          closeGenericFilterDropdown();
+        } else {
+          openGenericFilterDropdown(key);
+        }
+      });
+    });
+
+    if (gfdCloseBtn) gfdCloseBtn.addEventListener('click', closeGenericFilterDropdown);
+
+    document.addEventListener('click', (e) => {
+      if (gfdPanel.style.display !== 'block') return;
+      const cfg = GENERIC_FILTERS[currentGenericFilterKey];
+      const activeBtn = cfg ? document.getElementById(cfg.btnId) : null;
+      if (gfdPanel.contains(e.target) || e.target === activeBtn) return;
+      closeGenericFilterDropdown();
+    });
+
+    gfdPanel.addEventListener('click', (e) => e.stopPropagation());
+
+    gfdSearch.addEventListener('input', refreshGenericList);
+
+    gfdCheckAll.addEventListener('click', () => {
+      allGenericValues.forEach(v => tempGenericChecked.add(v));
+      refreshGenericList();
+      applyLiveGenericFilter();
+    });
+    gfdUncheckAll.addEventListener('click', () => {
+      tempGenericChecked.clear();
+      refreshGenericList();
+      applyLiveGenericFilter();
+    });
+
+    gfdBtnApply.addEventListener('click', () => {
+      closeGenericFilterDropdown();
+    });
+
+    gfdBtnClear.addEventListener('click', () => {
+      if (!currentGenericFilterKey) return;
+      activeGenericFilters[currentGenericFilterKey] = null;
+      tempGenericChecked = new Set(allGenericValues);
+      refreshGenericList();
+      updateGenericBtnState(currentGenericFilterKey);
       applyColumnFilters();
     });
 
