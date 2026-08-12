@@ -265,29 +265,29 @@
             </th>
             <th style="min-width:150px;">
               <div class="proc-th-title">PROCESSO</div>
-              <input type="text" class="proc-col-filter" data-col="processo" placeholder="Filtrar Nº...">
+              <input type="text" class="proc-col-filter" data-col="processo" placeholder="Nº (use vírgula p/ vários)">
             </th>
             <th style="min-width:230px;">
               <div class="proc-th-title">TITULARIDADE</div>
-              <input type="text" class="proc-col-filter" data-col="nome" placeholder="Filtrar Nome...">
+              <input type="text" class="proc-col-filter" data-col="nome" placeholder="Nome (vírgula p/ vários)">
             </th>
             <th style="min-width:140px;">
               <div class="proc-th-title">CPF</div>
-              <input type="text" class="proc-col-filter" data-col="cpf" placeholder="Filtrar CPF...">
+              <input type="text" class="proc-col-filter" data-col="cpf" placeholder="CPF (vírgula p/ vários)">
             </th>
             <th style="min-width:250px;">
               <div class="proc-th-title">
                 LOCALIZAÇÃO
                 <span class="proc-arrow proc-arrow-filterable" id="loc-filter-btn" title="Filtrar por Fazenda/Imóvel e Município">▼</span>
               </div>
-              <input type="text" class="proc-col-filter" data-col="localizacao" placeholder="Filtrar Imóvel/UF...">
+              <input type="text" class="proc-col-filter" data-col="localizacao" placeholder="Imóvel/UF (vírgula p/ vários)">
             </th>
             <th style="min-width:220px;">
               <div class="proc-th-title">
                 ATIVIDADE ATUAL
                 <span class="proc-arrow proc-arrow-filterable" id="ativ-filter-btn" title="Filtrar por Atividade Atual">▼</span>
               </div>
-              <input type="text" class="proc-col-filter" data-col="atividade" placeholder="Filtrar Atividade...">
+              <input type="text" class="proc-col-filter" data-col="atividade" placeholder="Atividade (vírgula p/ vários)">
             </th>
             <th style="min-width:130px;">
               <div class="proc-th-title">
@@ -298,14 +298,14 @@
             </th>
             <th style="min-width:150px;">
               <div class="proc-th-title">CNPJ ATER</div>
-              <input type="text" class="proc-col-filter" data-col="cnpj" placeholder="Filtrar CNPJ...">
+              <input type="text" class="proc-col-filter" data-col="cnpj" placeholder="CNPJ (vírgula p/ vários)">
             </th>
             <th id="th-etapa" style="min-width:150px; display:none;">
               <div class="proc-th-title">
                 LOCAL / ETAPA
                 <span class="proc-arrow proc-arrow-filterable" id="etapa-filter-btn" title="Filtrar por Etapa">▼</span>
               </div>
-              <input type="text" class="proc-col-filter" data-col="etapa" placeholder="Filtrar Etapa...">
+              <input type="text" class="proc-col-filter" data-col="etapa" placeholder="Etapa (vírgula p/ vários)">
             </th>
           </tr>
         </thead>
@@ -2938,9 +2938,14 @@
       }
 
       colFilters.forEach(input => {
-        const term = input.value.toLowerCase().trim();
+        const rawTerm = input.value.toLowerCase().trim();
         const col = input.dataset.col;
-        if (!term) return;
+        if (!rawTerm) return;
+
+        /* Suporte a busca multipla: varios termos separados por virgula
+           (tambem aceita ponto-e-virgula, quebra de linha ou tabulacao).
+           Ex.: 5632102, 5820598, 6137582 -> mostra todos esses processos. */
+        const terms = rawTerm.split(/[,;\n\t]+/).map(t => t.trim()).filter(Boolean);
 
         filtered = filtered.filter(row => {
           let val = '';
@@ -2955,19 +2960,21 @@
           else if (col === 'cnpj') val = String(row.cnpj_ater || '');
           else if (col === 'etapa') val = getEtapaByAtividade(row.atividade_atual);
 
-          return val.toLowerCase().includes(term);
+          const target = val.toLowerCase();
+          return terms.some(t => target.includes(t));
         });
       });
 
-      const globalTerm = (inpGlobalSearch && inpGlobalSearch.value || '').toLowerCase().trim();
-      if (globalTerm) {
+      const rawGlobal = (inpGlobalSearch && inpGlobalSearch.value || '').toLowerCase().trim();
+      if (rawGlobal) {
+        const globalTerms = rawGlobal.split(/[,;\n\t]+/).map(t => t.trim()).filter(Boolean);
         filtered = filtered.filter(row => {
           const combo = [
             row.processo, row.nome, row.cpf, row.imovel_resolvido,
             row.municipio_resolvido, row.uf_resolvida, row.atividade_atual,
             row.cnpj_ater, getEtapaByAtividade(row.atividade_atual)
           ].filter(Boolean).join(' ').toLowerCase();
-          return combo.includes(globalTerm);
+          return globalTerms.some(t => combo.includes(t));
         });
       }
 
