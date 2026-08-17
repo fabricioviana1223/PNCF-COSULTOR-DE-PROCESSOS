@@ -352,40 +352,51 @@
         /* --- TABELA DE DADOS --- */
         .table-container {
             margin-top: 25px;
-            overflow-x: auto;
+            overflow-x: hidden;
             border-radius: 10px;
             border: 1px solid var(--proc-border);
             background: var(--proc-surface-card);
         }
 
         #tableArea table {
-            width: 100%; 
-            min-width: 800px; 
-            border-collapse: separate;
-            border-spacing: 0;
-            font-size: 0.85rem;
+            width: 100%;
+            max-width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            font-size: 0.78rem;
             font-family: var(--proc-font-sans);
         }
 
         #tableArea thead th {
             background: var(--proc-surface);
-            padding: 1rem 0.85rem;
+            padding: 0.7rem 0.5rem;
             text-align: left;
             border-bottom: 2px solid var(--proc-border);
+            border-right: 1px solid var(--proc-border);
             color: var(--proc-text-muted);
             font-weight: 700;
-            font-size: 0.7rem;
-            letter-spacing: 0.06em;
+            font-size: 0.62rem;
+            letter-spacing: 0.04em;
             text-transform: uppercase;
+            word-break: break-word;
         }
 
         #tableArea tbody td,
         #tableArea tfoot td {
-            padding: 0.95rem 1rem;
+            padding: 0.6rem 0.5rem;
             border-bottom: 1px solid var(--proc-border-light);
+            border-right: 1px solid var(--proc-border);
             color: var(--proc-text-main);
-            vertical-align: middle;
+            vertical-align: top;
+            word-break: break-word;
+            overflow-wrap: anywhere;
             transition: background 0.2s ease;
+        }
+
+        #tableArea thead th:last-child,
+        #tableArea tbody td:last-child,
+        #tableArea tfoot td:last-child {
+            border-right: none;
         }
 
         #tableArea tbody tr:hover td {
@@ -394,33 +405,36 @@
 
         .col-group {
             white-space: normal;
-            line-height: 1.5;
-            min-width: 220px;
+            line-height: 1.45;
+            min-width: 0;
         }
 
         .linha-item {
             display: flex;
-            align-items: center;
-            gap: 6px;
-            white-space: nowrap;
-            margin-bottom: 4px;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 4px;
+            white-space: normal;
+            margin-bottom: 3px;
         }
 
         .linha-item .label {
             font-weight: 800;
-            font-size: 0.7rem;
+            font-size: 0.6rem;
             flex-shrink: 0;
             color: var(--proc-text-muted);
             background: var(--proc-surface);
-            padding: 2px 6px;
+            padding: 1px 5px;
             border-radius: 4px;
             border: 1px solid var(--proc-border);
         }
 
         .linha-item .valor {
-            flex-shrink: 0;
+            flex: 1 1 auto;
+            min-width: 0;
             font-weight: 500;
             color: var(--proc-text-main);
+            overflow-wrap: anywhere;
         }
 
         #tableArea td.col-codigo {
@@ -431,23 +445,37 @@
 
         #tableArea td.col-money {
             text-align: right;
-            white-space: nowrap;
             font-family: var(--proc-font-mono);
+            white-space: normal;
+            overflow-wrap: anywhere;
+            font-size: 0.72rem;
+            letter-spacing: -0.02em;
+            padding-left: 0.25rem;
+            padding-right: 0.35rem;
         }
 
         #tableArea .total-row td {
             background-color: var(--proc-surface) !important;
             border-top: 2px solid var(--proc-accent-main) !important;
             border-bottom: none !important;
-            border-left: none !important;
-            border-right: none !important;
             color: var(--proc-text-main) !important;
             font-weight: 800 !important;
         }
-        
+
         #tableArea .col-total {
-            color: #10B981 !important; 
-            font-size: 1rem;
+            color: #10B981 !important;
+            font-size: 0.78rem;
+        }
+
+        #tableArea tfoot td {
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        @media (max-width: 1100px) {
+            #tableArea table { font-size: 0.72rem; }
+            #tableArea tbody td, #tableArea tfoot td { padding: 0.5rem 0.35rem; }
+            #tableArea td.col-money { font-size: 0.68rem; }
         }
 
         /* --- TOAST --- */
@@ -590,16 +618,16 @@
         const COLUNA_FILTRO = 'PROCESSO';      
 
         const COLUNAS = [
-            { key: 'PROCESSO', label: 'Código', type: 'codigo' },
-            { key: 'PROPONENTE', label: 'Proponente', type: 'proponente' },
-            { key: 'CONJUGE', label: 'Cônjuge', type: 'conjuge' },
-            { key: 'LINHA DE FINANCIAMENTO', label: 'Linha de<br>Financiamento', type: 'text' },
-            { key: 'SAT', label: 'SAT', type: 'money' },
-            { key: 'SIB', label: 'SIB', type: 'money' },
-            { key: 'PROJETO', label: 'ATER', type: 'projeto_ater' },
-            { key: 'DESP. ACESS.', label: 'DESP. ACESS.', type: 'desp_acess' },
-            { key: 'ADICIONAIS', label: 'ADICIONAIS', type: 'adicionais' },
-            { key: 'TOTAL', label: 'TOTAL', type: 'money' },
+            { key: 'PROCESSO', label: 'Código', type: 'codigo', width: '6%' },
+            { key: 'PROPONENTE', label: 'Proponente', type: 'proponente', width: '16%' },
+            { key: 'CONJUGE', label: 'Cônjuge', type: 'conjuge', width: '12%' },
+            { key: 'LINHA DE FINANCIAMENTO', label: 'Linha de<br>Financiamento', type: 'text', width: '8%' },
+            { key: 'SAT', label: 'SAT', type: 'money', width: '7%' },
+            { key: 'SIB', label: 'SIB', type: 'money', width: '7%' },
+            { key: 'PROJETO', label: 'ATER', type: 'projeto_ater', width: '11%' },
+            { key: 'DESP. ACESS.', label: 'DESP. ACESS.', type: 'desp_acess', width: '10%' },
+            { key: 'ADICIONAIS', label: 'ADICIONAIS', type: 'adicionais', width: '10%' },
+            { key: 'TOTAL', label: 'TOTAL', type: 'money', width: '12%' },
         ];
 
         const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -709,7 +737,9 @@
                 return;
             }
 
-            let html = '<table><thead><tr>';
+            let html = '<table>';
+            html += '<colgroup>' + COLUNAS.map(c => `<col style="width:${c.width || 'auto'}">`).join('') + '</colgroup>';
+            html += '<thead><tr>';
             for (const col of COLUNAS) {
                 const cls = col.type === 'money' ? ' class="col-money"' : '';
                 html += `<th${cls}>${col.label}</th>`;
@@ -826,7 +856,7 @@
                         `;
                         html += `<td class="col-group">${cellVal}</td>`;
                     } else {
-                        html += `<td style="white-space: nowrap;">${val ?? '—'}</td>`;
+                        html += `<td>${val ?? '—'}</td>`;
                     }
                 }
                 html += '</tr>';
