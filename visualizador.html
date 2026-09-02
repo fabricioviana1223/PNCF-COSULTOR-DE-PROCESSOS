@@ -3000,7 +3000,15 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
   transition: max-height .35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .proc-fzp-proc.is-open .proc-fzp-row-detail { max-height: 1600px; overflow-y: auto; }
-.proc-fzp-row-detail .proc-fzp-fields { padding: 4px 16px 18px 48px; }
+  .proc-fzp-row-detail .proc-fzp-fields { padding: 4px 16px 18px 48px; }
+  .proc-fzp-valores { padding: 0 16px 18px 48px; }
+  .proc-fzp-valores-title {
+    font-size: .72rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase;
+    color: #059669; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+  }
+  .proc-fzp-valores-title::after { content: ''; flex: 1; height: 1px; background: rgba(16,185,129,.35); }
+  .proc-fzp-valores .proc-fzp-fields { padding: 0 !important; }
+  .proc-fzp-field-money .proc-fzp-field-value { color: #059669; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
 @media (max-width: 860px) {
   .proc-fzp-row { grid-template-columns: 20px 84px 1fr; row-gap: 4px; }
   .proc-fzp-row-atividade, .proc-fzp-row-etapa { grid-column: 2 / -1; }
@@ -3384,7 +3392,33 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
        GET  /api/contratacoes                                 -> pagos
        POST /api/sei            body { processosIds: [...] }  -> SEI (opcional)
        ================================================================ */
-    const API_BASE = 'http://18.217.219.60:3000/api';
+    /* ── Endereco da API AWS ──
+       Pode ser trocado sem editar o arquivo: no console do navegador rode
+       setApiBase('http://SEU_IP:3000/api')  (fica salvo neste navegador).
+       Para voltar ao padrao: setApiBase(null). */
+    const API_BASE_PADRAO = 'http://18.217.219.60:3000/api';
+    let API_BASE = (() => {
+      try { return localStorage.getItem('proc-api-base') || API_BASE_PADRAO; }
+      catch { return API_BASE_PADRAO; }
+    })();
+    window.setApiBase = function (novo) {
+      try {
+        if (novo) { localStorage.setItem('proc-api-base', String(novo).replace(/\/+$/, '')); }
+        else { localStorage.removeItem('proc-api-base'); }
+      } catch {}
+      API_BASE = novo ? String(novo).replace(/\/+$/, '') : API_BASE_PADRAO;
+      console.log('[AWS] API_BASE agora e:', API_BASE);
+      return API_BASE;
+    };
+    /* Quando a pagina esta em HTTPS o navegador BLOQUEIA chamadas para
+       http:// (conteudo misto). Nesse caso usamos automaticamente um
+       repassador publico HTTPS como plano B. Abrindo o arquivo direto do
+       computador (file://) nada disso e necessario. */
+    const PAGINA_HTTPS = (typeof location !== 'undefined' && location.protocol === 'https:');
+    const PROXIES_HTTPS = [
+      (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+      (u) => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u),
+    ];
     /* Quantidade de processos enviados por requisicao nos endpoints que
        recebem listas (a API aguenta lotes grandes, mas fatiamos para nunca
        montar um corpo gigantesco de uma unica vez). */
@@ -3728,28 +3762,74 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
     /* ── Requisicoes a API AWS ──
        GET quando nao ha corpo; POST com JSON quando ha. Sempre devolve um
        array (ou lanca erro com a mensagem devolvida pela API). */
+    const API_TIMEOUT_MS = 180000;
+
+    function mensagemDeRede(err) {
+      const m = String((err && err.message) || err || '');
+      if (/abort/i.test(m)) {
+        return 'A API demorou demais para responder (tempo esgotado). Tente novamente.';
+      }
+      if (/failed to fetch|networkerror|load failed|ERR_/i.test(m)) {
+        if (PAGINA_HTTPS) {
+          return 'O navegador bloqueou a conexao porque esta pagina esta em HTTPS e a API e HTTP. '
+               + 'Baixe o arquivo e abra direto no computador (duplo clique), ou publique a API em HTTPS.';
+        }
+        return 'Nao foi possivel falar com a API ' + API_BASE + '. Verifique se o servidor AWS esta ligado, '
+             + 'se a porta 3000 esta liberada na sua rede/firewall e se voce esta com internet.';
+      }
+      return m || 'Erro desconhecido de rede.';
+    }
+
+    async function fetchComTimeout(url, opts) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), API_TIMEOUT_MS);
+      try { return await fetch(url, { ...opts, signal: ctrl.signal, mode: 'cors', cache: 'no-store' }); }
+      finally { clearTimeout(t); }
+    }
+
+    /* ── Requisicoes a API AWS ──
+       GET quando nao ha corpo; POST com JSON quando ha.
+       - tenta ate 3 vezes (falhas de rede momentaneas)
+       - se a pagina estiver em HTTPS, cai automaticamente para um
+         repassador HTTPS (conteudo misto)
+       - sempre devolve um array (ou lanca erro com mensagem amigavel). */
     async function apiRequest(path, body) {
       const url = `${API_BASE}${path}`;
       const opts = (body === undefined)
         ? { method: 'GET', headers: { 'Accept': 'application/json' } }
         : { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(body) };
 
-      const response = await fetch(url, opts);
-      if (!response.ok) {
-        let msg = `HTTP ${response.status}`;
-        try {
-          const j = await response.json();
-          if (j && (j.erro || j.error || j.message)) msg = j.erro || j.error || j.message;
-        } catch {}
-        throw new Error(msg);
-      }
+      const alvos = [url];
+      if (PAGINA_HTTPS && /^http:/i.test(url)) PROXIES_HTTPS.forEach(fn => alvos.push(fn(url)));
 
-      const data = await response.json().catch(() => []);
-      if (Array.isArray(data)) return data;
-      if (data && Array.isArray(data.dados)) return data.dados;
-      if (data && Array.isArray(data.data)) return data.data;
-      if (data && (data.erro || data.error)) throw new Error(data.erro || data.error);
-      return [];
+      let ultimoErro = null;
+      for (const alvo of alvos) {
+        for (let tentativa = 1; tentativa <= 3; tentativa++) {
+          try {
+            const response = await fetchComTimeout(alvo, opts);
+            if (!response.ok) {
+              let msg = `HTTP ${response.status}`;
+              try {
+                const j = await response.clone().json();
+                if (j && (j.erro || j.error || j.message)) msg = j.erro || j.error || j.message;
+              } catch {}
+              throw new Error(msg);
+            }
+            const data = await response.json().catch(() => []);
+            if (Array.isArray(data)) return data;
+            if (data && Array.isArray(data.dados)) return data.dados;
+            if (data && Array.isArray(data.data)) return data.data;
+            if (data && (data.erro || data.error)) throw new Error(data.erro || data.error);
+            return [];
+          } catch (err) {
+            ultimoErro = err;
+            const rede = /failed to fetch|networkerror|load failed|abort|ERR_/i.test(String(err && err.message));
+            if (!rede) throw new Error(mensagemDeRede(err));
+            if (tentativa < 3) await new Promise(r => setTimeout(r, 800 * tentativa));
+          }
+        }
+      }
+      throw new Error(mensagemDeRede(ultimoErro));
     }
 
     const apiGet = (path) => apiRequest(path);
@@ -4113,7 +4193,15 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
  
     function applySearchFilters(baseData, buscarTodos, ufSelecionada, filtroSobrestado, filtroSei, filtroPagamento, filtroBancoPago, filtroBbBnb) {
         const filtroSituacao = selFiltroSituacao ? (selFiltroSituacao.value || 'TUDO') : 'TUDO';
+        const semInfo = (v) => {
+            const s = String(v == null ? '' : v).trim().toLowerCase();
+            return !s || s === '—' || s === 'n/d' || s === 'não informado' || s === 'nao informado' || s === 'null' || s === 'undefined';
+        };
         return baseData.filter(row => {
+            /* Etapa Inicial sem nome de fazenda E sem nome de beneficiario:
+               registro vazio, nao entra em nenhuma visualizacao. */
+            if (getEtapaByAtividade(row.atividade_atual) === 'Etapa Inicial'
+                && semInfo(row.imovel_resolvido) && semInfo(row.nome)) return false;
             if (!buscarTodos && row.uf_resolvida !== ufSelecionada) return false;
             /* Situacao vinda da API AWS: ativo (Em andamento) ou em atraso. */
             if (filtroSituacao !== 'TUDO' && normalizarTextoBanco(row.status_do_processo) !== filtroSituacao) return false;
@@ -4422,7 +4510,7 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
         const urlProcesso = `https://mapa.servicos.gov.br/workspace/flow/${encodeURIComponent(processo)}`;
  
         const btnMinutaHTML = (processo && processo !== '—' && row.tem_minuta)
-          ? `<button type="button" class="proc-minuta-btn" data-processo="${escapeAttr(processo)}" title="Ver a minuta (valores) deste processo">Minuta</button>`
+          ? `<button type="button" class="proc-minuta-btn" data-processo="${escapeAttr(processo)}" title="Ver os valores deste processo">Valores</button>`
           : '';
 
         const linkProcesso = (processo && processo !== '—')
@@ -6714,7 +6802,39 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
       return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
     }
 
-    const FZP_HIDDEN_FIELDS = new Set(['tem_sei', 'is_pago', 'is_sobrestrado', 'pago_2026']);
+    const FZP_HIDDEN_FIELDS = new Set(['tem_sei', 'is_pago', 'is_sobrestrado', 'pago_2026', 'minuta', 'tem_minuta']);
+
+    /* ── Secao VALORES dentro do cartao do processo (pagina da fazenda) ──
+       Mostra todos os campos da minuta (tabela de valores por processo)
+       direto no detalhe expandido, com os valores monetarios em verde. */
+    const FZP_MONEY_KEYS = ['SAT','SIB','ELAB. PROJETO','SERV. ATER','ITBI','CARTORIO','GEO'];
+    function fzpMoeda(v) {
+      const n = Number(String(v).replace(/\./g, '.').replace(',', '.'));
+      if (!isFinite(n)) return escapeAttr(String(v));
+      return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+    function buildFzpValoresHTML(row) {
+      const minuta = row && row.minuta;
+      if (!minuta || typeof minuta !== 'object') return '';
+      const campos = Array.isArray(MINUTA_CAMPOS) ? MINUTA_CAMPOS : Object.keys(minuta).map(k => [k, k]);
+      const itens = campos.map(([chave, label]) => {
+        const valor = minuta[chave];
+        if (valor === null || valor === undefined) return '';
+        const str = String(valor).trim();
+        if (!str || str.toLowerCase() === 'null') return '';
+        const isMoney = FZP_MONEY_KEYS.includes(chave) && /^[\d.,]+$/.test(str);
+        const exibido = isMoney ? fzpMoeda(str) : escapeAttr(str);
+        return `<div class="proc-fzp-field ${isMoney ? 'proc-fzp-field-money' : ''}">
+                  <span class="proc-fzp-field-label">${escapeAttr(label)}</span>
+                  <span class="proc-fzp-field-value">${exibido}</span>
+                </div>`;
+      }).join('');
+      if (!itens) return '';
+      return `<div class="proc-fzp-valores">
+                <div class="proc-fzp-valores-title">Valores</div>
+                <div class="proc-fzp-fields proc-fzp-fields-valores">${itens}</div>
+              </div>`;
+    }
     const FZP_LABELS = {
       processo: 'Processo', nome: 'Titular', cpf: 'CPF', atividade_atual: 'Atividade atual',
       abertura: 'Abertura', cnpj_ater: 'CNPJ ATER', sncr: 'SNCR',
@@ -6774,6 +6894,7 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
           </div>
           <div class="proc-fzp-row-detail">
             <div class="proc-fzp-fields">${fields}</div>
+            ${buildFzpValoresHTML(row)}
           </div>
         </div>`;
     }
@@ -7102,10 +7223,10 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
   .proc-minuta-btn {
     font-family: inherit; font-size: .625rem; font-weight: 800; letter-spacing:.06em;
     text-transform: uppercase; cursor: pointer; padding: 2px 8px; border-radius: 999px;
-    border: 1px solid rgba(59,130,246,.45); background: rgba(59,130,246,.14);
-    color: var(--proc-text-main); transition: transform .12s ease, background .12s ease;
+    border: 1px solid rgba(16,185,129,.55); background: rgba(16,185,129,.16);
+    color: #059669; transition: transform .12s ease, background .12s ease;
   }
-  .proc-minuta-btn:hover { background: rgba(59,130,246,.28); transform: translateY(-1px); }
+  .proc-minuta-btn:hover { background: rgba(16,185,129,.30); transform: translateY(-1px); }
   #minuta-overlay {
     position: fixed; inset: 0; z-index: 9999; display: none;
     align-items: center; justify-content: center; padding: 1.25rem;
@@ -7140,7 +7261,7 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
   <div class="minuta-box">
     <div class="minuta-head">
       <div>
-        <h3 id="minuta-title">Minuta do processo</h3>
+        <h3 id="minuta-title" style="color:#059669;">Valores do processo</h3>
         <p id="minuta-sub">—</p>
       </div>
       <button type="button" class="minuta-close" id="minuta-close" title="Fechar">&times;</button>
@@ -7176,7 +7297,7 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
     const row = acharProcesso(cod);
     const minuta = row && row.minuta;
     if (!minuta) {
-      if (typeof showToast === 'function') showToast('Este processo não possui minuta na base.', 'info');
+      if (typeof showToast === 'function') showToast('Este processo não possui valores na base.', 'info');
       return;
     }
     const fazenda = (row.imovel_resolvido && row.imovel_resolvido !== 'Não informado') ? row.imovel_resolvido : 'Imóvel não informado';
@@ -7193,7 +7314,7 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
                 <span>${label}</span>
                 <strong>${exibido.replace(/</g, '&lt;')}</strong>
               </div>`;
-    }).join('') || '<p style="color:var(--proc-text-muted);font-size:.85rem;">Minuta sem valores preenchidos.</p>';
+    }).join('') || '<p style="color:var(--proc-text-muted);font-size:.85rem;">Processo sem valores preenchidos.</p>';
 
     overlay.classList.add('is-open');
   }
