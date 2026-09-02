@@ -3384,33 +3384,7 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
        GET  /api/contratacoes                                 -> pagos
        POST /api/sei            body { processosIds: [...] }  -> SEI (opcional)
        ================================================================ */
-    /* ── Endereco da API AWS ──
-       Pode ser trocado sem editar o arquivo: no console do navegador rode
-       setApiBase('http://SEU_IP:3000/api')  (fica salvo neste navegador).
-       Para voltar ao padrao: setApiBase(null). */
-    const API_BASE_PADRAO = 'http://18.217.219.60:3000/api';
-    let API_BASE = (() => {
-      try { return localStorage.getItem('proc-api-base') || API_BASE_PADRAO; }
-      catch { return API_BASE_PADRAO; }
-    })();
-    window.setApiBase = function (novo) {
-      try {
-        if (novo) { localStorage.setItem('proc-api-base', String(novo).replace(/\/+$/, '')); }
-        else { localStorage.removeItem('proc-api-base'); }
-      } catch {}
-      API_BASE = novo ? String(novo).replace(/\/+$/, '') : API_BASE_PADRAO;
-      console.log('[AWS] API_BASE agora e:', API_BASE);
-      return API_BASE;
-    };
-    /* Quando a pagina esta em HTTPS o navegador BLOQUEIA chamadas para
-       http:// (conteudo misto). Nesse caso usamos automaticamente um
-       repassador publico HTTPS como plano B. Abrindo o arquivo direto do
-       computador (file://) nada disso e necessario. */
-    const PAGINA_HTTPS = (typeof location !== 'undefined' && location.protocol === 'https:');
-    const PROXIES_HTTPS = [
-      (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
-      (u) => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u),
-    ];
+    const API_BASE = 'http://18.217.219.60:3000/api';
     /* Quantidade de processos enviados por requisicao nos endpoints que
        recebem listas (a API aguenta lotes grandes, mas fatiamos para nunca
        montar um corpo gigantesco de uma unica vez). */
@@ -3754,74 +3728,28 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
     /* ── Requisicoes a API AWS ──
        GET quando nao ha corpo; POST com JSON quando ha. Sempre devolve um
        array (ou lanca erro com a mensagem devolvida pela API). */
-    const API_TIMEOUT_MS = 180000;
-
-    function mensagemDeRede(err) {
-      const m = String((err && err.message) || err || '');
-      if (/abort/i.test(m)) {
-        return 'A API demorou demais para responder (tempo esgotado). Tente novamente.';
-      }
-      if (/failed to fetch|networkerror|load failed|ERR_/i.test(m)) {
-        if (PAGINA_HTTPS) {
-          return 'O navegador bloqueou a conexao porque esta pagina esta em HTTPS e a API e HTTP. '
-               + 'Baixe o arquivo e abra direto no computador (duplo clique), ou publique a API em HTTPS.';
-        }
-        return 'Nao foi possivel falar com a API ' + API_BASE + '. Verifique se o servidor AWS esta ligado, '
-             + 'se a porta 3000 esta liberada na sua rede/firewall e se voce esta com internet.';
-      }
-      return m || 'Erro desconhecido de rede.';
-    }
-
-    async function fetchComTimeout(url, opts) {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), API_TIMEOUT_MS);
-      try { return await fetch(url, { ...opts, signal: ctrl.signal, mode: 'cors', cache: 'no-store' }); }
-      finally { clearTimeout(t); }
-    }
-
-    /* ── Requisicoes a API AWS ──
-       GET quando nao ha corpo; POST com JSON quando ha.
-       - tenta ate 3 vezes (falhas de rede momentaneas)
-       - se a pagina estiver em HTTPS, cai automaticamente para um
-         repassador HTTPS (conteudo misto)
-       - sempre devolve um array (ou lanca erro com mensagem amigavel). */
     async function apiRequest(path, body) {
       const url = `${API_BASE}${path}`;
       const opts = (body === undefined)
         ? { method: 'GET', headers: { 'Accept': 'application/json' } }
         : { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(body) };
 
-      const alvos = [url];
-      if (PAGINA_HTTPS && /^http:/i.test(url)) PROXIES_HTTPS.forEach(fn => alvos.push(fn(url)));
-
-      let ultimoErro = null;
-      for (const alvo of alvos) {
-        for (let tentativa = 1; tentativa <= 3; tentativa++) {
-          try {
-            const response = await fetchComTimeout(alvo, opts);
-            if (!response.ok) {
-              let msg = `HTTP ${response.status}`;
-              try {
-                const j = await response.clone().json();
-                if (j && (j.erro || j.error || j.message)) msg = j.erro || j.error || j.message;
-              } catch {}
-              throw new Error(msg);
-            }
-            const data = await response.json().catch(() => []);
-            if (Array.isArray(data)) return data;
-            if (data && Array.isArray(data.dados)) return data.dados;
-            if (data && Array.isArray(data.data)) return data.data;
-            if (data && (data.erro || data.error)) throw new Error(data.erro || data.error);
-            return [];
-          } catch (err) {
-            ultimoErro = err;
-            const rede = /failed to fetch|networkerror|load failed|abort|ERR_/i.test(String(err && err.message));
-            if (!rede) throw new Error(mensagemDeRede(err));
-            if (tentativa < 3) await new Promise(r => setTimeout(r, 800 * tentativa));
-          }
-        }
+      const response = await fetch(url, opts);
+      if (!response.ok) {
+        let msg = `HTTP ${response.status}`;
+        try {
+          const j = await response.json();
+          if (j && (j.erro || j.error || j.message)) msg = j.erro || j.error || j.message;
+        } catch {}
+        throw new Error(msg);
       }
-      throw new Error(mensagemDeRede(ultimoErro));
+
+      const data = await response.json().catch(() => []);
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.dados)) return data.dados;
+      if (data && Array.isArray(data.data)) return data.data;
+      if (data && (data.erro || data.error)) throw new Error(data.erro || data.error);
+      return [];
     }
 
     const apiGet = (path) => apiRequest(path);
