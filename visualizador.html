@@ -621,6 +621,17 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
       </div>
 
       <div class="proc-form-group">
+        <label class="proc-label-small" for="sel-filtro-situacao">Situação (AWS)</label>
+        <div class="proc-input-wrapper">
+          <select id="sel-filtro-situacao" class="proc-input proc-select">
+            <option value="TUDO">Ativos + Em atraso</option>
+            <option value="EM ANDAMENTO">Somente Ativos (Em andamento)</option>
+            <option value="ATRASADO">Somente Em atraso</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="proc-form-group">
         <label class="proc-label-small" for="sel-filtro-sei">SEI</label>
         <div class="proc-input-wrapper">
           <select id="sel-filtro-sei" class="proc-input proc-select">
@@ -3204,21 +3215,11 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
     ];
     const setSobrestados = new Set(SOBRESTADOS_LISTA);
  
-    /* ── Tabelas de Contratações (Processos Pagos) ──
-       Vivem na mesma base separada da tabela "SEI" (SEI_SUPABASE_URL).
-       CONTRATAÇÕES_2026 tem a data da fatura (DT_Fatura); CONTRATAÇÕES_GERAL
-       é o histórico completo, sem data. A relação com a tabela "principal"
-       só pode ser feita casando CPF_CNPJ + BENEF (não existe número de
-       processo nessas tabelas), por isso normalizamos ambos os lados. */
-    const CONTRATACOES_2026_TABLE = 'CONTRATAÇÕES_2026';
-    const CONTRATACOES_GERAL_TABLE = 'CONTRATAÇÕES_GERAL';
+    /* ── Contratações (Processos Pagos) — GET /api/contratacoes (API AWS) ──
+       A rota devolve protocolo, processo, cpf_cnpj, agentes_financeiros, uf e
+       municipio. Como agora existe o numero do processo, o cruzamento com
+       /api/principal e feito por processo e, na falta dele, por CPF/CNPJ. */
 
-    /* ── Tabela "ProcessosNoBanco" (Supabase pessoal, mesma base da "principal") ──
-       Colunas usadas: "Processo" e "AGENTE_FINANCEIRO" (o nome da coluna do agente
-       financeiro pode variar de caixa dependendo de como foi criada no Supabase,
-       por isso testamos várias variações abaixo). Cruza pelo número do Processo
-       (diferente da CONTRATAÇÕES, que cruza por CPF/CNPJ). */
-    const PROCESSOS_NO_BANCO_TABLE = 'ProcessosNoBanco';
 
     function normalizarTextoBanco(valor) {
       if (valor === null || valor === undefined) return '';
@@ -3247,14 +3248,8 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
       BNB: 'Banco do Nordeste (BNB)'
     };
 
-    /* Busca a tabela "ProcessosNoBanco" (mesma base do Supabase da tabela
-       "principal") e monta um Map: processo (string) -> { raw, grupo }, onde
-       grupo é 'BB', 'BNB' ou '' (não classificado). Nunca lança erro para fora
-       — se a tabela falhar ou não existir, os processos seguem sendo exibidos
-       normalmente, apenas sem essa classificação. */
     /* Procura, num objeto de exemplo, a chave real que corresponde a um dos
-       nomes candidatos — primeiro tentando igualdade exata (preserva a caixa
-       tal como foi criada no Supabase) e, se não achar, tentando por
+       nomes candidatos — primeiro tentando igualdade exata e, se não achar, por
        comparação sem diferenciar maiúsculas/minúsculas. Retorna null se
        nenhuma das colunas candidatas existir no objeto. */
     function encontrarChaveReal(objExemplo, candidatos) {
@@ -3271,59 +3266,21 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
       return null;
     }
 
-    /* Busca a tabela "ProcessosNoBanco". Ela vive na MESMA base separada da
-       tabela "SEI" (SEI_SUPABASE_URL) — confirmado pela URL
-       https://mbfmgksbpmmxcnyvmvqt.supabase.co/rest/v1/ProcessosNoBanco —,
-       então usamos fetchAllSupabaseSei/SEI_ANON_KEY, e não a base "principal".
-       Detecta dinamicamente os nomes reais das colunas "Processo" e
-       "Agente Financeiro" (a caixa pode variar conforme foi criada no
-       Supabase) e loga no console um exemplo bruto + as colunas detectadas,
-       além de qualquer valor de agente financeiro que não se encaixe em BB
-       nem BNB, para facilitar a conferência dos dados reais. */
-    async function fetchProcessosNoBancoMap() {
-      const map = new Map();
-      try {
-        const dados = await fetchAllSupabaseSei(`${encodeURIComponent(PROCESSOS_NO_BANCO_TABLE)}?select=*`);
-        if (Array.isArray(dados) && dados.length > 0) {
-          const colProcesso = encontrarChaveReal(dados[0], ['Processo', 'PROCESSO', 'processo', 'N_Processo', 'Nº Processo']);
-          const colAgente = encontrarChaveReal(dados[0], [
-            'AGENTE_FINANCEIRO', 'Agente_Financeiro', 'Agente financeiro', 'Agente Financeiro',
-            'agente_financeiro', 'AgenteFinanceiro', 'agente financeiro', 'Banco', 'BANCO', 'banco',
-            'Grupo do banco', 'Grupo Do Banco', 'GRUPO DO BANCO', 'GRUPO_DO_BANCO', 'grupo_do_banco', 'Grupo_do_Banco'
-          ]);
-
-          console.log('[ProcessosNoBanco] Colunas encontradas na tabela:', Object.keys(dados[0]));
-          console.log('[ProcessosNoBanco] Usando coluna de processo:', colProcesso, '| coluna de agente financeiro:', colAgente);
-          console.log('[ProcessosNoBanco] Exemplo de registro bruto:', dados[0]);
-          console.log(`[ProcessosNoBanco] Total de registros recebidos: ${dados.length}`);
-
-          const naoClassificados = new Set();
-
-          dados.forEach(item => {
-            const processoRaw = colProcesso ? item[colProcesso] : null;
-            if (processoRaw === null || processoRaw === undefined || processoRaw === '') return;
-            const processo = String(processoRaw).trim();
-            if (!processo) return;
-
-            const agenteRaw = colAgente ? item[colAgente] : '';
-            const grupo = classificarAgenteFinanceiro(agenteRaw);
-            if (!grupo && agenteRaw) naoClassificados.add(String(agenteRaw).trim());
-            map.set(processo, { raw: String(agenteRaw || '').trim(), grupo });
-          });
-
-          if (naoClassificados.size > 0) {
-            console.warn('[ProcessosNoBanco] Valores de agente financeiro que NÃO foram reconhecidos como BB nem BNB (revisar classificarAgenteFinanceiro se algum destes deveria contar):', Array.from(naoClassificados));
-          }
-          console.log(`[ProcessosNoBanco] Processos classificados -> BB: ${Array.from(map.values()).filter(v => v.grupo === 'BB').length} | BNB: ${Array.from(map.values()).filter(v => v.grupo === 'BNB').length}`);
-        } else {
-          console.warn('[ProcessosNoBanco] A tabela retornou vazia ou não foi encontrada.');
-        }
-      } catch (err) {
-        console.error('[Processos] Falha ao buscar tabela ProcessosNoBanco:', err);
-      }
-      return map;
+    /* O agente financeiro agora vem direto da API AWS (coluna
+       "agentes_financeiros" de /api/principal e de /api/contratacoes), por
+       isso nao existe mais tabela auxiliar a consultar. A funcao continua
+       existindo apenas para manter a mesma estrutura de dados usada pelo
+       filtro BB/BNB. */
+    function montarBancoInfo(...valores) {
+      const raw = extrairTextoValido(...valores);
+      const grupo = classificarAgenteFinanceiro(raw);
+      return {
+        raw,
+        grupo,
+        label: grupo ? BANCO_GRUPO_LABEL[grupo] : ''
+      };
     }
- 
+
     /* Corrige CPFs que perderam zeros à esquerda ao virem do Excel.
        Ex.: 4266469160 -> 04266469160 ; 154652152 -> 00154652152.
        CPF tem 11 dígitos e CNPJ 14: completamos com zeros à esquerda
@@ -3361,70 +3318,106 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
       return c;
     }
  
-    /* Busca as duas tabelas de contratações (base separada do SEI) e monta
-       um Map: chave (CPF+BENEF normalizados) -> { banco, dtFatura, origem }.
-       CONTRATAÇÕES_GERAL é lida primeiro (histórico geral); CONTRATAÇÕES_2026
-       é lida depois e SOBRESCREVE quando houver o mesmo CPF+BENEF, pois traz
-       a data da fatura (DT_Fatura) usada no tooltip. Nunca lança erro para
-       fora — se as tabelas de pagamento falharem, os processos seguem sendo
-       exibidos normalmente, apenas sem a marcação de "pago". */
+    /* ── PROCESSOS PAGOS (GET /api/contratacoes) ──
+       A API devolve: protocolo, processo, cpf_cnpj, agentes_financeiros, uf,
+       municipio. Como agora existe o numero do processo, o cruzamento e feito
+       primeiro por processo (exato) e, como reserva, por CPF/CNPJ. O ano da
+       contratacao sai do protocolo (ex.: 000014.2280198/2022 -> 2022), o que
+       mantem funcionando o filtro "Somente Pagos em 2026".
+       Nunca lanca erro para fora: se a rota falhar, os processos continuam
+       aparecendo, apenas sem a marcacao de pago. */
     async function fetchContratacoesMap() {
       const map = new Map();
- 
+
       try {
-        const [dadosGeral, dados2026] = await Promise.all([
-          fetchAllSupabaseSei(`${encodeURIComponent(CONTRATACOES_GERAL_TABLE)}?select=*`),
-          fetchAllSupabaseSei(`${encodeURIComponent(CONTRATACOES_2026_TABLE)}?select=*`)
-        ]);
- 
-        if (Array.isArray(dadosGeral)) {
-          dadosGeral.forEach(item => {
-            const chave = chavePagamento(item['CPF_CNPJ'], item['BENEF']);
-            if (!chave) return;
-            const banco = (item['BANCO'] || '').toString().trim();
-            map.set(chave, { banco: banco || 'Não informado', dtFatura: '', origem: 'GERAL', pago2026: false });
-          });
-        }
- 
-        if (Array.isArray(dados2026)) {
-          dados2026.forEach(item => {
-            const chave = chavePagamento(item['CPF_CNPJ'], item['BENEF']);
-            if (!chave) return;
-            const banco = (item['Banco'] || '').toString().trim();
-            const anterior = map.get(chave);
-            map.set(chave, {
-              banco: banco || (anterior ? anterior.banco : 'Não informado'),
-              dtFatura: (item['DT_Fatura'] || '').toString().trim(),
-              origem: '2026',
-              /* Pago em 2026: registro da tabela CONTRATACOES_2026. Se houver
-                 data de fatura, confirma o ano; sem data, assume 2026. */
-              pago2026: (() => {
-                const dt = (item['DT_Fatura'] || '').toString();
-                const ano = dt.match(/(19|20)\d{2}/);
-                return ano ? ano[0] === '2026' : true;
-              })()
-            });
-          });
-        }
+        const dados = await apiGet('/contratacoes');
+
+        dados.forEach(item => {
+          if (!item) return;
+          const protocolo = (item.protocolo || '').toString().trim();
+          const anoMatch = protocolo.match(/(19|20)\d{2}/);
+          const ano = anoMatch ? anoMatch[0] : '';
+
+          const info = {
+            banco: (item.agentes_financeiros || '').toString().trim() || 'Não informado',
+            protocolo,
+            uf: (item.uf || '').toString().trim(),
+            municipio: (item.municipio || '').toString().trim(),
+            dtFatura: ano ? `Contratação ${ano}` : '',
+            ano,
+            origem: 'AWS',
+            pago2026: ano === '2026'
+          };
+
+          const proc = (item.processo === null || item.processo === undefined) ? '' : String(item.processo).trim();
+          if (proc) map.set(`P:${proc}`, info);
+
+          const cpf = normalizarCpf(item.cpf_cnpj);
+          if (cpf && !map.has(`C:${cpf}`)) map.set(`C:${cpf}`, info);
+        });
+
+        console.log(`[Contratações/AWS] ${dados.length} contratações carregadas (processos pagos).`);
       } catch (err) {
-        console.error('[Processos] Falha ao buscar tabelas de Contratações (pagos):', err);
+        console.error('[Processos] Falha ao buscar /api/contratacoes (pagos):', err);
       }
- 
+
       return map;
     }
- 
-    /* ── Supabase Setup ── */
-    const SUPABASE_URL = 'https://bvdphvczpvzhjdaylybm.supabase.co';
-    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2ZHBodmN6cHZ6aGpkYXlseWJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MTA5NDYsImV4cCI6MjA4NzA4Njk0Nn0.pBbSwWxyY_DGH66q9xeKAd6W2ySdltz8fQHdP9TFgwo';
- 
-    /* ── Supabase Setup (base separada: Tabela "SEI") ──
-       Base Supabase diferente da principal, usada só para localizar
-       o número do Processo SEI de cada processo (via coluna "Processo"). */
-    const SEI_SUPABASE_URL = 'https://mbfmgksbpmmxcnyvmvqt.supabase.co';
-    const SEI_ANON_KEY = 'sb_publishable_FMDm0TQOzW3VTNBPD2wu6Q_Bs6_RDu6';
-    const SEI_COL_CODIGO = 'Processo';
-    const SEI_COL_PROCESSO = 'Processo SEI';
- 
+
+    /* Procura o pagamento primeiro pelo numero do processo e depois pelo
+       CPF/CNPJ do beneficiario. */
+    function acharPagamento(map, processo, cpf) {
+      if (!map || map.size === 0) return null;
+      const proc = processo ? String(processo).trim() : '';
+      if (proc && map.has(`P:${proc}`)) return map.get(`P:${proc}`);
+      const c = normalizarCpf(cpf);
+      if (c && map.has(`C:${c}`)) return map.get(`C:${c}`);
+      return null;
+    }
+
+    /* ================================================================
+       FONTE DE DADOS: API AWS (substitui completamente o Supabase)
+       ----------------------------------------------------------------
+       POST /api/principal      body { atividades: [...] }   -> processos
+       POST /api/imoveis        body { processosIds: [...] }  -> imoveis
+       POST /api/minuta         body { codigos: [...] }       -> minuta
+       GET  /api/contratacoes                                 -> pagos
+       POST /api/sei            body { processosIds: [...] }  -> SEI (opcional)
+       ================================================================ */
+    /* ── Endereco da API AWS ──
+       Pode ser trocado sem editar o arquivo: no console do navegador rode
+       setApiBase('http://SEU_IP:3000/api')  (fica salvo neste navegador).
+       Para voltar ao padrao: setApiBase(null). */
+    const API_BASE_PADRAO = 'http://18.217.219.60:3000/api';
+    let API_BASE = (() => {
+      try { return localStorage.getItem('proc-api-base') || API_BASE_PADRAO; }
+      catch { return API_BASE_PADRAO; }
+    })();
+    window.setApiBase = function (novo) {
+      try {
+        if (novo) { localStorage.setItem('proc-api-base', String(novo).replace(/\/+$/, '')); }
+        else { localStorage.removeItem('proc-api-base'); }
+      } catch {}
+      API_BASE = novo ? String(novo).replace(/\/+$/, '') : API_BASE_PADRAO;
+      console.log('[AWS] API_BASE agora e:', API_BASE);
+      return API_BASE;
+    };
+    /* Quando a pagina esta em HTTPS o navegador BLOQUEIA chamadas para
+       http:// (conteudo misto). Nesse caso usamos automaticamente um
+       repassador publico HTTPS como plano B. Abrindo o arquivo direto do
+       computador (file://) nada disso e necessario. */
+    const PAGINA_HTTPS = (typeof location !== 'undefined' && location.protocol === 'https:');
+    const PROXIES_HTTPS = [
+      (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+      (u) => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u),
+    ];
+    /* Quantidade de processos enviados por requisicao nos endpoints que
+       recebem listas (a API aguenta lotes grandes, mas fatiamos para nunca
+       montar um corpo gigantesco de uma unica vez). */
+    const API_CHUNK = 1000;
+    /* "Ativo e em atraso": os unicos status que entram no painel. */
+    const STATUS_ATIVOS = ['EM ANDAMENTO', 'ATRASADO'];
+
     /* ── Configuração das Etapas ── */
     const ETAPAS_CONFIG = {
       INICIAL: [
@@ -3504,7 +3497,7 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
     let memoryCache = {};
  
     /* ================================================================
-       CACHE PERSISTENTE (IndexedDB) — evita bater no limite do Supabase
+       CACHE PERSISTENTE (IndexedDB) — evita requisicoes repetidas a API AWS
        Guarda os dados localmente e só busca no banco de novo:
          1) quando o usuário clicar em "Atualizar Banco", ou
          2) quando a última atualização for de um dia anterior.
@@ -3515,7 +3508,7 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
     const CACHE_DB_NAME = 'procVisualizadorDB';
     const CACHE_DB_VERSION = 1;
     const CACHE_STORE_NAME = 'cache';
-    const CACHE_RECORD_ID = 'main_v2_agente_financeiro';
+    const CACHE_RECORD_ID = 'main_v4_api_aws';
  
     function openCacheDB() {
       return new Promise((resolve, reject) => {
@@ -3605,6 +3598,7 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
     const selUf = document.getElementById('sel-uf');
     const selFiltroSobrestado = document.getElementById('sel-filtro-sobrestado');
     const selFiltroSei = document.getElementById('sel-filtro-sei');
+    const selFiltroSituacao = document.getElementById('sel-filtro-situacao');
     const selFiltroPagamento = document.getElementById('sel-filtro-pagamento');
     const selFiltroBancoPago = document.getElementById('sel-filtro-banco-pago');
     const selFiltroBbBnb = document.getElementById('sel-filtro-bb-bnb');
@@ -3757,101 +3751,89 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
       return '';
     }
  
-    async function supabaseRequest(path, opts = {}) {
-      const url = `${SUPABASE_URL}/rest/v1/${path}`;
-      const headers = {
-        'apikey': ANON_KEY,
-        'Authorization': `Bearer ${ANON_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation',
-        ...(opts.headers || {}),
-      };
- 
-      const response = await fetch(url, { ...opts, headers });
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(err.message || `HTTP ${response.status}`);
+    /* ── Requisicoes a API AWS ──
+       GET quando nao ha corpo; POST com JSON quando ha. Sempre devolve um
+       array (ou lanca erro com a mensagem devolvida pela API). */
+    const API_TIMEOUT_MS = 180000;
+
+    function mensagemDeRede(err) {
+      const m = String((err && err.message) || err || '');
+      if (/abort/i.test(m)) {
+        return 'A API demorou demais para responder (tempo esgotado). Tente novamente.';
       }
- 
-      const ct = response.headers.get('content-type') || '';
-      if (ct.includes('application/json')) return response.json();
-      return [];
+      if (/failed to fetch|networkerror|load failed|ERR_/i.test(m)) {
+        if (PAGINA_HTTPS) {
+          return 'O navegador bloqueou a conexao porque esta pagina esta em HTTPS e a API e HTTP. '
+               + 'Baixe o arquivo e abra direto no computador (duplo clique), ou publique a API em HTTPS.';
+        }
+        return 'Nao foi possivel falar com a API ' + API_BASE + '. Verifique se o servidor AWS esta ligado, '
+             + 'se a porta 3000 esta liberada na sua rede/firewall e se voce esta com internet.';
+      }
+      return m || 'Erro desconhecido de rede.';
     }
- 
-    async function fetchAllSupabase(path, opts = {}) {
-      const limit = 1000;
-      let offset = 0;
-      let allData = [];
-      let keepFetching = true;
- 
-      while (keepFetching) {
-        const headers = {
-          'Range-Unit': 'items',
-          'Range': `${offset}-${offset + limit - 1}`,
-          ...(opts.headers || {})
-        };
- 
-        const data = await supabaseRequest(path, { ...opts, headers });
-        if (Array.isArray(data)) {
-          allData = allData.concat(data);
-          if (data.length < limit) keepFetching = false;
-          else offset += limit;
-        } else {
-          allData = data;
-          keepFetching = false;
+
+    async function fetchComTimeout(url, opts) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), API_TIMEOUT_MS);
+      try { return await fetch(url, { ...opts, signal: ctrl.signal, mode: 'cors', cache: 'no-store' }); }
+      finally { clearTimeout(t); }
+    }
+
+    /* ── Requisicoes a API AWS ──
+       GET quando nao ha corpo; POST com JSON quando ha.
+       - tenta ate 3 vezes (falhas de rede momentaneas)
+       - se a pagina estiver em HTTPS, cai automaticamente para um
+         repassador HTTPS (conteudo misto)
+       - sempre devolve um array (ou lanca erro com mensagem amigavel). */
+    async function apiRequest(path, body) {
+      const url = `${API_BASE}${path}`;
+      const opts = (body === undefined)
+        ? { method: 'GET', headers: { 'Accept': 'application/json' } }
+        : { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(body) };
+
+      const alvos = [url];
+      if (PAGINA_HTTPS && /^http:/i.test(url)) PROXIES_HTTPS.forEach(fn => alvos.push(fn(url)));
+
+      let ultimoErro = null;
+      for (const alvo of alvos) {
+        for (let tentativa = 1; tentativa <= 3; tentativa++) {
+          try {
+            const response = await fetchComTimeout(alvo, opts);
+            if (!response.ok) {
+              let msg = `HTTP ${response.status}`;
+              try {
+                const j = await response.clone().json();
+                if (j && (j.erro || j.error || j.message)) msg = j.erro || j.error || j.message;
+              } catch {}
+              throw new Error(msg);
+            }
+            const data = await response.json().catch(() => []);
+            if (Array.isArray(data)) return data;
+            if (data && Array.isArray(data.dados)) return data.dados;
+            if (data && Array.isArray(data.data)) return data.data;
+            if (data && (data.erro || data.error)) throw new Error(data.erro || data.error);
+            return [];
+          } catch (err) {
+            ultimoErro = err;
+            const rede = /failed to fetch|networkerror|load failed|abort|ERR_/i.test(String(err && err.message));
+            if (!rede) throw new Error(mensagemDeRede(err));
+            if (tentativa < 3) await new Promise(r => setTimeout(r, 800 * tentativa));
+          }
         }
       }
-      return allData;
+      throw new Error(mensagemDeRede(ultimoErro));
     }
- 
-    /* ── Requisições para a base separada da Tabela "SEI" ── */
-    async function seiRequest(path, opts = {}) {
-      const url = `${SEI_SUPABASE_URL}/rest/v1/${path}`;
-      const headers = {
-        'apikey': SEI_ANON_KEY,
-        'Authorization': `Bearer ${SEI_ANON_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation',
-        ...(opts.headers || {}),
-      };
- 
-      const response = await fetch(url, { ...opts, headers });
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(err.message || `HTTP ${response.status}`);
-      }
- 
-      const ct = response.headers.get('content-type') || '';
-      if (ct.includes('application/json')) return response.json();
-      return [];
+
+    const apiGet = (path) => apiRequest(path);
+    const apiPost = (path, body) => apiRequest(path, body || {});
+
+    /* Dispara varias requisicoes POST em lotes, concatenando os resultados. */
+    async function apiPostChunks(path, chave, valores, tamanho = API_CHUNK) {
+      const lotes = chunkArray(valores, tamanho);
+      const resultados = await Promise.all(lotes.map(lote => apiPost(path, { [chave]: lote })));
+      return resultados.reduce((acc, r) => acc.concat(Array.isArray(r) ? r : []), []);
     }
- 
-    async function fetchAllSupabaseSei(path, opts = {}) {
-      const limit = 1000;
-      let offset = 0;
-      let allData = [];
-      let keepFetching = true;
- 
-      while (keepFetching) {
-        const headers = {
-          'Range-Unit': 'items',
-          'Range': `${offset}-${offset + limit - 1}`,
-          ...(opts.headers || {})
-        };
- 
-        const data = await seiRequest(path, { ...opts, headers });
-        if (Array.isArray(data)) {
-          allData = allData.concat(data);
-          if (data.length < limit) keepFetching = false;
-          else offset += limit;
-        } else {
-          allData = data;
-          keepFetching = false;
-        }
-      }
-      return allData;
-    }
- 
+
     /* Busca na tabela "SEI" (base separada) os números de Processo SEI
        relacionados aos processos informados, casando pelo campo
        "Processo" (que corresponde ao "processo" da tabela principal).
@@ -3859,47 +3841,93 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
        não encontrado / vazio / "NULL"). Nunca lança erro para fora — se a
        base do SEI falhar, retorna um Map vazio e a tabela principal segue
        sendo exibida normalmente (apenas sem o SEI preenchido). */
+    /* Busca o numero do Processo SEI na API AWS (POST /api/sei).
+       O endpoint e opcional: se estiver fora do ar ou nao existir, o painel
+       continua funcionando normalmente, apenas com a coluna SEI vazia. */
     async function fetchSeiMap(processosIds) {
       const seiMap = new Map();
       if (!Array.isArray(processosIds) || processosIds.length === 0) return seiMap;
- 
+
       try {
-        const idChunks = chunkArray(processosIds, 149);
-        const selectCols = `${encodeURIComponent(SEI_COL_CODIGO)},${encodeURIComponent(SEI_COL_PROCESSO)}`;
- 
-        const seiPromises = idChunks.map(chunk => {
-          const valoresIn = chunk.map(id => String(id).trim()).filter(Boolean).join(',');
-          const pathSei = `SEI?select=${selectCols}&${encodeURIComponent(SEI_COL_CODIGO)}=in.(${valoresIn})`;
-          return fetchAllSupabaseSei(pathSei);
+        /* Primeiro lote serve de teste: se a rota falhar, abortamos sem
+           encher o console de erros. */
+        const lotes = chunkArray(processosIds.map(String), 500);
+        const dados = [];
+        for (const lote of lotes) {
+          const parcial = await apiPost('/sei', { processosIds: lote });
+          if (Array.isArray(parcial)) dados.push(...parcial);
+        }
+        dados.forEach(item => {
+          if (!item) return;
+          const codigoRaw = item.processo ?? item.PROCESSO ?? item.Processo ?? item.codigo;
+          if (codigoRaw === null || codigoRaw === undefined || codigoRaw === '') return;
+          const cleanKey = String(codigoRaw).trim();
+
+          let seiVal = item.processo_sei ?? item['Processo SEI'] ?? item.sei ?? item.SEI ?? '';
+          seiVal = (seiVal === null || seiVal === undefined) ? '' : String(seiVal).trim();
+          if (seiVal.toLowerCase() === 'null') seiVal = '';
+
+          if (seiVal || !seiMap.has(cleanKey)) seiMap.set(cleanKey, seiVal);
         });
- 
-        const seiResults = await Promise.all(seiPromises);
-        seiResults.forEach(chunkData => {
-          if (!Array.isArray(chunkData)) return;
-          chunkData.forEach(item => {
-            const codigo = item[SEI_COL_CODIGO];
-            if (codigo === null || codigo === undefined || codigo === '') return;
-            const cleanKey = String(codigo).trim();
- 
-            let seiVal = item[SEI_COL_PROCESSO];
-            if (seiVal === null || seiVal === undefined) seiVal = '';
-            seiVal = String(seiVal).trim();
-            if (seiVal.toLowerCase() === 'null') seiVal = '';
- 
-            if (seiVal && !seiMap.has(cleanKey)) {
-              seiMap.set(cleanKey, seiVal);
-            } else if (!seiMap.has(cleanKey)) {
-              seiMap.set(cleanKey, '');
-            }
-          });
-        });
+        console.log(`[SEI/AWS] ${seiMap.size} processos com informacao de SEI.`);
       } catch (err) {
-        console.error('[Processos] Falha ao buscar tabela SEI (base separada):', err);
+        console.warn('[SEI/AWS] Endpoint /api/sei indisponivel — coluna SEI ficara vazia:', err.message);
       }
- 
+
       return seiMap;
     }
- 
+
+    /* ── MINUTA (POST /api/minuta { codigos: [...] }) ──
+       Traz os valores financeiros da minuta de cada processo (SAT, SIB,
+       ITBI, cartorio, GEO, ATER, projeto, etc). Nunca lanca erro para fora:
+       se a rota falhar, o painel continua funcionando sem a minuta. */
+    const MINUTA_CAMPOS = [
+      ['BENEFICIARIO', 'Beneficiário'],
+      ['CPF', 'CPF'],
+      ['ESTADO CIVIL', 'Estado civil'],
+      ['NOME CONJUGE', 'Cônjuge'],
+      ['CPF CONJUGE', 'CPF do cônjuge'],
+      ['LINHA DE FINANCIAMENTO', 'Linha de financiamento'],
+      ['SAT', 'SAT (aquisição da terra)'],
+      ['SIB', 'SIB (investimentos)'],
+      ['ELAB. PROJETO', 'Elaboração do projeto'],
+      ['SERV. ATER', 'Serviço de ATER'],
+      ['ITBI', 'ITBI'],
+      ['CARTORIO', 'Cartório'],
+      ['GEO', 'Georreferenciamento'],
+      ['CAPAC. INICIAL', 'Capacitação inicial'],
+      ['LAUDO AVALIACAO', 'Laudo de avaliação'],
+      ['PRODUCAO', 'Produção'],
+      ['PAA OU PNAE', 'PAA ou PNAE'],
+      ['PRONAF-A', 'PRONAF-A']
+    ];
+
+    /* O script principal roda dentro de uma IIFE; expomos apenas o
+       necessario para o painel da minuta (no fim do arquivo) ler os dados. */
+    window.MINUTA_CAMPOS = MINUTA_CAMPOS;
+    window.__procGetRows = () => allFilteredRows;
+
+    async function fetchMinutaMap(processosIds) {
+      const map = new Map();
+      if (!Array.isArray(processosIds) || processosIds.length === 0) return map;
+      try {
+        const lotes = chunkArray(processosIds.map(String), 500);
+        for (const lote of lotes) {
+          const parcial = await apiPost('/minuta', { codigos: lote });
+          (Array.isArray(parcial) ? parcial : []).forEach(item => {
+            if (!item) return;
+            const codigo = String(item.PROCESSO ?? item.processo ?? '').trim();
+            if (!codigo) return;
+            if (!map.has(codigo)) map.set(codigo, item);
+          });
+        }
+        console.log(`[Minuta/AWS] ${map.size} processos com minuta carregada.`);
+      } catch (err) {
+        console.warn('[Minuta/AWS] Endpoint /api/minuta indisponivel:', err.message);
+      }
+      return map;
+    }
+
     function chunkArray(array, size) {
       const chunked = [];
       for (let i = 0; i < array.length; i += size) {
@@ -3993,13 +4021,16 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
       }
  
       try {
-        const atividadesQuery = atividades.map(a => `"${a}"`).join(',');
-        let pathPrincipal = `principal?select=*`
-          + `&status_do_processo=in.("${encodeURIComponent('Em andamento')}","${encodeURIComponent('Atrasado')}")`
-          + `&atividade_atual=in.(${encodeURIComponent(atividadesQuery)})`;
- 
-        const principalData = await fetchAllSupabase(pathPrincipal);
-        
+        /* 1) PROCESSOS — POST /api/principal { atividades: [...] } */
+        const principalBruto = await apiPost('/principal', { atividades });
+
+        /* Mantemos apenas o que esta ATIVO ou EM ATRASO. */
+        const principalData = (Array.isArray(principalBruto) ? principalBruto : []).filter(p => {
+          const st = normalizarTextoBanco(p && p.status_do_processo);
+          return STATUS_ATIVOS.includes(st);
+        });
+
+        console.log(`[AWS] /api/principal -> ${Array.isArray(principalBruto) ? principalBruto.length : 0} registros | ativos/atrasados: ${principalData.length}`);
         if (!Array.isArray(principalData) || principalData.length === 0) {
           rawData = [];
           /* Apaga TODO o cache anterior (todas as etapas) antes de salvar o
@@ -4018,78 +4049,68 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
           return;
         }
  
-        /* Detecta, na tabela "principal", uma coluna com o nome "Grupo do banco"
-           (aceitando variações de caixa) para usar como fonte adicional do
-           agente financeiro exibido na tabela principal, quando não houver
-           informação vinda das Contratações (pagamentoInfo). */
-        const colGrupoDoBancoPrincipal = encontrarChaveReal(principalData[0], [
-          'Grupo do banco', 'Grupo Do Banco', 'GRUPO DO BANCO', 'GRUPO_DO_BANCO', 'grupo_do_banco', 'Grupo_do_Banco'
-        ]);
-
+        /* 2) IMOVEIS — POST /api/imoveis { processosIds: [...] } */
         const processosIds = principalData.map(p => String(p.processo).trim()).filter(Boolean);
-        let allGridData = [];
-        
-        const idChunks = chunkArray(processosIds, 149);
-        const gridPromises = idChunks.map(chunk => {
-          const valoresIn = chunk.map(id => `"${id}"`).join(',');
-          let pathGrid = `grid_imoveis?select=*&processo=in.(${encodeURIComponent(valoresIn)})`;
-          return fetchAllSupabase(pathGrid);
-        });
- 
-        const [gridResults, seiMap, pagamentosMap, processosNoBancoMap] = await Promise.all([
-          Promise.all(gridPromises),
+
+        const [allGridData, seiMap, pagamentosMap, minutaMap] = await Promise.all([
+          apiPostChunks('/imoveis', 'processosIds', processosIds),
           fetchSeiMap(processosIds),
           fetchContratacoesMap(),
-          fetchProcessosNoBancoMap()
+          fetchMinutaMap(processosIds)
         ]);
-        gridResults.forEach(gridChunk => {
-          if (Array.isArray(gridChunk)) allGridData = allGridData.concat(gridChunk);
-        });
-        
+
+        console.log(`[AWS] /api/imoveis -> ${allGridData.length} imoveis vinculados.`);
+
         const gridMap = new Map();
         allGridData.forEach(g => {
-          if (!g.processo) return;
+          if (!g || !g.processo) return;
           const cleanKey = String(g.processo).trim();
           if (!gridMap.has(cleanKey)) gridMap.set(cleanKey, []);
           gridMap.get(cleanKey).push(g);
         });
- 
+
         const stageAllRows = principalData.map(p => {
             const cleanPKey = String(p.processo).trim();
             const grids = gridMap.get(cleanPKey) || [];
-            
-            let finalImovel = extrairTextoValido(p.nome_do_imovel, p.nome_imovel, p.imovel, p.nome_propriedade, p.fazenda, p.propriedade);
+
+            let finalImovel = extrairTextoValido(p.denominacao_do_imovel1, p.nome_do_imovel, p.nome_imovel, p.imovel, p.nome_propriedade, p.fazenda, p.propriedade);
             let finalMunicipio = extrairTextoValido(p.municipio, p.cidade);
             let finalUf = extrairTextoValido(p.uf, p.estado);
-            let sncrValue = ''; 
- 
+            let sncrValue = '';
+
             for (const grid of grids) {
                 const gImovel = extrairTextoValido(grid.nome_do_imovel, grid.nome_imovel, grid.imovel, grid.nome_propriedade, grid.fazenda, grid.propriedade);
                 const gMunicipio = extrairTextoValido(grid.municipio, grid.cidade);
                 const gUf = extrairTextoValido(grid.uf, grid.estado);
-                if(!sncrValue && grid.sncr) sncrValue = grid.sncr;
- 
+                const gSncr = extrairTextoValido(grid.codigo_do_sncr, grid.sncr);
+                if (!sncrValue && gSncr) sncrValue = gSncr;
+
                 if (!finalImovel && gImovel) finalImovel = gImovel;
                 if (!finalMunicipio && gMunicipio) finalMunicipio = gMunicipio;
                 if (!finalUf && gUf) finalUf = gUf;
             }
- 
-            const seiEncontrado = seiMap.get(cleanPKey) || '';
- 
-            const chavePg = chavePagamento(p.cpf, p.nome);
-            const pagamentoInfo = chavePg ? pagamentosMap.get(chavePg) : null;
- 
-            /* Cruzamento com a tabela "ProcessosNoBanco" pelo número do Processo. */
-            const noBancoInfo = processosNoBancoMap.get(cleanPKey) || null;
 
-            /* Valor bruto da coluna "Grupo do banco" (quando existir na tabela
-               principal), usado como alternativa para preencher o agente
-               financeiro na tabela principal quando não há pagamentoInfo. */
-            const grupoDoBancoBruto = colGrupoDoBancoPrincipal ? extrairTextoValido(p[colGrupoDoBancoPrincipal]) : '';
- 
+            const seiEncontrado = seiMap.get(cleanPKey) || '';
+
+            /* 3) PAGOS — cruzamento por processo e, na falta, por CPF/CNPJ. */
+            const pagamentoInfo = acharPagamento(pagamentosMap, cleanPKey, p.cpf);
+
+            /* Localizacao de reserva: quando o imovel ainda nao esta na base de
+               imoveis, aproveitamos UF/municipio da contratacao. */
+            if (!finalMunicipio && pagamentoInfo) finalMunicipio = pagamentoInfo.municipio || '';
+            if (!finalUf && pagamentoInfo) finalUf = pagamentoInfo.uf || '';
+
+            /* 4) AGENTE FINANCEIRO — vem da propria API (principal/contratacoes). */
+            const bancoInfo = montarBancoInfo(
+              p.agentes_financeiros,
+              pagamentoInfo ? pagamentoInfo.banco : '',
+              p.agente_financeiro,
+              p.banco
+            );
+
             return {
                 ...p,
-                sncr: p.sncr || sncrValue || '',
+                sncr: extrairTextoValido(p.sncr, sncrValue),
                 imovel_resolvido: finalImovel || 'Não informado',
                 municipio_resolvido: finalMunicipio || 'Não informado',
                 uf_resolvida: finalUf || 'N/D',
@@ -4098,14 +4119,23 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
                 tem_sei: !!seiEncontrado,
                 is_pago: !!pagamentoInfo,
                 banco_pagamento: pagamentoInfo ? pagamentoInfo.banco : '',
-                agente_financeiro: pagamentoInfo ? pagamentoInfo.banco : (grupoDoBancoBruto || ''),
+                agente_financeiro: bancoInfo.raw,
                 pago_2026: !!(pagamentoInfo && pagamentoInfo.pago2026),
                 dt_fatura_pagamento: pagamentoInfo ? pagamentoInfo.dtFatura : '',
-                agente_financeiro_no_banco: noBancoInfo ? noBancoInfo.raw : '',
-                banco_grupo: noBancoInfo ? noBancoInfo.grupo : '',
-                banco_grupo_label: (noBancoInfo && noBancoInfo.grupo) ? BANCO_GRUPO_LABEL[noBancoInfo.grupo] : ''
+                protocolo_contratacao: pagamentoInfo ? pagamentoInfo.protocolo : '',
+                agente_financeiro_no_banco: bancoInfo.raw,
+                banco_grupo: bancoInfo.grupo,
+                banco_grupo_label: bancoInfo.label,
+                minuta: minutaMap.get(cleanPKey) || null,
+                tem_minuta: minutaMap.has(cleanPKey)
             };
-        }).filter(row => row.uf_resolvida !== 'N/D' && row.imovel_resolvido !== 'Não informado');
+        });
+        /* IMPORTANTE: NAO descartamos mais os processos sem imovel cadastrado.
+           Antes o filtro `uf_resolvida !== 'N/D'` escondia mais de mil
+           processos ativos que ainda estao nas etapas iniciais (sem imovel
+           na base). Agora TODO processo ativo/em atraso aparece, com
+           "Não informado" na fazenda/municipio quando o dado ainda nao
+           existe no banco. */
  
         /* Apaga TODO o cache anterior (todas as etapas) antes de salvar o
            novo resultado. Assim, uma atualização forçada nunca deixa
@@ -4154,8 +4184,11 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
     }
  
     function applySearchFilters(baseData, buscarTodos, ufSelecionada, filtroSobrestado, filtroSei, filtroPagamento, filtroBancoPago, filtroBbBnb) {
+        const filtroSituacao = selFiltroSituacao ? (selFiltroSituacao.value || 'TUDO') : 'TUDO';
         return baseData.filter(row => {
             if (!buscarTodos && row.uf_resolvida !== ufSelecionada) return false;
+            /* Situacao vinda da API AWS: ativo (Em andamento) ou em atraso. */
+            if (filtroSituacao !== 'TUDO' && normalizarTextoBanco(row.status_do_processo) !== filtroSituacao) return false;
             if (filtroSobrestado === 'SOMENTE_SOBRESTADOS' && !row.is_sobrestrado) return false;
             if (filtroSobrestado === 'SEM_SOBRESTADOS' && row.is_sobrestrado) return false;
             if (filtroSei === 'SOMENTE_COM_SEI' && !row.tem_sei) return false;
@@ -4460,8 +4493,12 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
  
         const urlProcesso = `https://mapa.servicos.gov.br/workspace/flow/${encodeURIComponent(processo)}`;
  
-        const linkProcesso = (processo && processo !== '—') 
-          ? `<a href="${urlProcesso}" target="_blank" class="proc-link" title="Abrir no Lecom">${processo}</a>`
+        const btnMinutaHTML = (processo && processo !== '—' && row.tem_minuta)
+          ? `<button type="button" class="proc-minuta-btn" data-processo="${escapeAttr(processo)}" title="Ver a minuta (valores) deste processo">Minuta</button>`
+          : '';
+
+        const linkProcesso = (processo && processo !== '—')
+          ? `<div class="proc-cod-cell"><a href="${urlProcesso}" target="_blank" class="proc-link" title="Abrir no Lecom">${processo}</a>${btnMinutaHTML}</div>`
           : '—';
  
         const seiNumero = (row.sei_numero || '').trim();
@@ -6433,6 +6470,12 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
           if (Object.keys(memoryCache).length > 0) fetchProcessos(false);
       });
     }
+
+    if (selFiltroSituacao) {
+      selFiltroSituacao.addEventListener('change', () => {
+          if (Object.keys(memoryCache).length > 0) fetchProcessos(false);
+      });
+    }
  
     if (selFiltroBancoPago) {
       selFiltroBancoPago.addEventListener('change', () => {
@@ -6498,7 +6541,7 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
  
         if (cached && isSameLocalDay(cached.savedAt)) {
           // Ainda estamos no mesmo dia da última atualização: usa o cache local
-          // e NÃO faz nenhuma requisição ao Supabase.
+          // e NÃO faz nenhuma requisição a API AWS.
           memoryCache = cached.memoryCache || {};
           updateLastSyncLabel(cached.savedAt);
           Promise.resolve(fetchProcessos(false))
@@ -7124,5 +7167,119 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
 </script>
 
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"7f7b0fd8732c4326aae4b9d58d5c514a"}' crossorigin="anonymous"></script>
+
+<!-- ================= MODAL DA MINUTA (dados de /api/minuta) ================= -->
+<style>
+  .proc-cod-cell { display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
+  .proc-minuta-btn {
+    font-family: inherit; font-size: .625rem; font-weight: 800; letter-spacing:.06em;
+    text-transform: uppercase; cursor: pointer; padding: 2px 8px; border-radius: 999px;
+    border: 1px solid rgba(59,130,246,.45); background: rgba(59,130,246,.14);
+    color: var(--proc-text-main); transition: transform .12s ease, background .12s ease;
+  }
+  .proc-minuta-btn:hover { background: rgba(59,130,246,.28); transform: translateY(-1px); }
+  #minuta-overlay {
+    position: fixed; inset: 0; z-index: 9999; display: none;
+    align-items: center; justify-content: center; padding: 1.25rem;
+    background: rgba(8,10,18,.62); backdrop-filter: blur(6px);
+  }
+  #minuta-overlay.is-open { display: flex; }
+  .minuta-box {
+    width: min(760px, 96vw); max-height: 88vh; overflow: auto; border-radius: 20px;
+    background: var(--proc-modal-solid, #fff); color: var(--proc-text-main);
+    border: 1px solid rgba(148,163,184,.28); box-shadow: 0 30px 80px rgba(0,0,0,.45);
+    animation: minutaIn .18s ease;
+  }
+  @keyframes minutaIn { from { opacity:0; transform: translateY(14px) scale(.985); } to { opacity:1; transform:none; } }
+  .minuta-head {
+    display:flex; align-items:flex-start; justify-content:space-between; gap:1rem;
+    padding: 1.15rem 1.4rem; border-bottom: 1px solid rgba(148,163,184,.22);
+  }
+  .minuta-head h3 { margin:0; font-size:1.05rem; font-weight:800; letter-spacing:-.01em; }
+  .minuta-head p { margin:.25rem 0 0; font-size:.78rem; color: var(--proc-text-muted); }
+  .minuta-close {
+    border:none; background: rgba(148,163,184,.16); color: var(--proc-text-main);
+    width:32px; height:32px; border-radius:10px; cursor:pointer; font-size:1rem; font-weight:700;
+  }
+  .minuta-close:hover { background: rgba(239,68,68,.24); }
+  .minuta-grid { padding: 1.1rem 1.4rem 1.5rem; display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:.7rem; }
+  .minuta-item { border:1px solid rgba(148,163,184,.2); border-radius:14px; padding:.6rem .8rem; background: rgba(148,163,184,.07); }
+  .minuta-item span { display:block; font-size:.66rem; text-transform:uppercase; letter-spacing:.08em; color: var(--proc-text-muted); font-weight:700; }
+  .minuta-item strong { display:block; margin-top:.2rem; font-size:.92rem; font-weight:700; word-break:break-word; }
+  .minuta-item.is-money strong { color:#10B981; font-family:'JetBrains Mono', monospace; }
+</style>
+<div id="minuta-overlay" role="dialog" aria-modal="true" aria-labelledby="minuta-title">
+  <div class="minuta-box">
+    <div class="minuta-head">
+      <div>
+        <h3 id="minuta-title">Minuta do processo</h3>
+        <p id="minuta-sub">—</p>
+      </div>
+      <button type="button" class="minuta-close" id="minuta-close" title="Fechar">&times;</button>
+    </div>
+    <div class="minuta-grid" id="minuta-grid"></div>
+  </div>
+</div>
+<script>
+(function () {
+  const MONEY_KEYS = ['SAT','SIB','ELAB. PROJETO','SERV. ATER','ITBI','CARTORIO','GEO'];
+  const overlay = document.getElementById('minuta-overlay');
+  const grid = document.getElementById('minuta-grid');
+  const sub = document.getElementById('minuta-sub');
+
+  function moeda(v) {
+    const n = Number(String(v).replace(/\./g, '.').replace(',', '.'));
+    if (!isFinite(n)) return String(v);
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function acharProcesso(cod) {
+    const listas = [];
+    const rows = (typeof window.__procGetRows === 'function') ? window.__procGetRows() : null;
+    if (Array.isArray(rows)) listas.push(rows);
+    for (const lista of listas) {
+      const achado = lista.find(r => String(r.processo).trim() === String(cod).trim());
+      if (achado) return achado;
+    }
+    return null;
+  }
+
+  function abrirMinuta(cod) {
+    const row = acharProcesso(cod);
+    const minuta = row && row.minuta;
+    if (!minuta) {
+      if (typeof showToast === 'function') showToast('Este processo não possui minuta na base.', 'info');
+      return;
+    }
+    const fazenda = (row.imovel_resolvido && row.imovel_resolvido !== 'Não informado') ? row.imovel_resolvido : 'Imóvel não informado';
+    const local = [row.municipio_resolvido, row.uf_resolvida].filter(v => v && v !== 'N/D' && v !== 'Não informado').join(' / ');
+    sub.textContent = `Processo ${cod} • ${fazenda}${local ? ' • ' + local : ''}`;
+
+    const campos = Array.isArray(window.MINUTA_CAMPOS) ? window.MINUTA_CAMPOS : Object.keys(minuta).map(k => [k, k]);
+    grid.innerHTML = campos.map(([chave, label]) => {
+      let valor = minuta[chave];
+      if (valor === null || valor === undefined || String(valor).trim() === '' || String(valor).toLowerCase() === 'null') return '';
+      const isMoney = MONEY_KEYS.includes(chave) && /^[\d.,]+$/.test(String(valor).trim());
+      const exibido = isMoney ? moeda(valor) : String(valor);
+      return `<div class="minuta-item ${isMoney ? 'is-money' : ''}">
+                <span>${label}</span>
+                <strong>${exibido.replace(/</g, '&lt;')}</strong>
+              </div>`;
+    }).join('') || '<p style="color:var(--proc-text-muted);font-size:.85rem;">Minuta sem valores preenchidos.</p>';
+
+    overlay.classList.add('is-open');
+  }
+
+  function fechar() { overlay.classList.remove('is-open'); }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest && e.target.closest('.proc-minuta-btn');
+    if (btn) { e.preventDefault(); e.stopPropagation(); abrirMinuta(btn.dataset.processo); }
+  });
+  document.getElementById('minuta-close').addEventListener('click', fechar);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) fechar(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fechar(); });
+})();
+</script>
 </body>
 </html>
