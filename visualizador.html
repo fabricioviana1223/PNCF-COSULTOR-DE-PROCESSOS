@@ -620,7 +620,7 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
         </div>
       </div>
 
-      <div class="proc-form-group">
+      <div class="proc-form-group" style="display:none;">
         <label class="proc-label-small" for="sel-filtro-situacao">Situação (AWS)</label>
         <div class="proc-input-wrapper">
           <select id="sel-filtro-situacao" class="proc-input proc-select">
@@ -631,7 +631,7 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
         </div>
       </div>
 
-      <div class="proc-form-group">
+      <div class="proc-form-group" style="display:none;">
         <label class="proc-label-small" for="sel-filtro-sei">SEI</label>
         <div class="proc-input-wrapper">
           <select id="sel-filtro-sei" class="proc-input proc-select">
@@ -3410,6 +3410,7 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
       console.log('[AWS] API_BASE agora e:', API_BASE);
       return API_BASE;
     };
+
     /* Quando a pagina esta em HTTPS o navegador BLOQUEIA chamadas para
        http:// (conteudo misto). Nesse caso usamos automaticamente um
        repassador publico HTTPS como plano B. Abrindo o arquivo direto do
@@ -3800,7 +3801,9 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
         : { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(body) };
 
       const alvos = [url];
-      if (PAGINA_HTTPS && /^http:/i.test(url)) PROXIES_HTTPS.forEach(fn => alvos.push(fn(url)));
+      /* Plano B universal: se a rede/firewall do computador bloquear a porta 3000
+         (ou a pagina estiver em HTTPS), tentamos por repassadores publicos HTTPS. */
+      if (/^http:/i.test(url)) PROXIES_HTTPS.forEach(fn => alvos.push(fn(url)));
 
       let ultimoErro = null;
       for (const alvo of alvos) {
@@ -3912,6 +3915,51 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
 
     /* O script principal roda dentro de uma IIFE; expomos apenas o
        necessario para o painel da minuta (no fim do arquivo) ler os dados. */
+    /* ── TOTAIS DE VALORES ──
+       Somamos apenas os campos monetarios da minuta. O total do processo e a
+       soma dos itens daquele processo; o total da fazenda e a soma dos totais
+       de todos os processos daquele imovel. */
+    const MINUTA_MONEY_KEYS = ['SAT','SIB','ELAB. PROJETO','SERV. ATER','ITBI','CARTORIO','GEO'];
+
+    function parseMoedaBR(v) {
+      if (v === null || v === undefined) return 0;
+      let t = String(v).trim();
+      if (!t || /^(null|undefined|x|n\/d)$/i.test(t)) return 0;
+      t = t.replace(/[^\d.,-]/g, '');
+      if (!t) return 0;
+      if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+      const n = Number(t);
+      return isFinite(n) ? n : 0;
+    }
+
+    function formatarMoedaBR(n) {
+      return Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    function totalMinuta(minuta) {
+      if (!minuta || typeof minuta !== 'object') return 0;
+      return MINUTA_MONEY_KEYS.reduce((acc, k) => acc + parseMoedaBR(minuta[k]), 0);
+    }
+
+    function totalProcessos(rows) {
+      return (Array.isArray(rows) ? rows : []).reduce((acc, r) => acc + totalMinuta(r && r.minuta), 0);
+    }
+
+    window.MINUTA_MONEY_KEYS = MINUTA_MONEY_KEYS;
+    window.__totalMinuta = totalMinuta;
+    window.__totalProcessos = totalProcessos;
+    window.__formatarMoedaBR = formatarMoedaBR;
+    window.__procGetGroupOfProcesso = function (cod) {
+      try {
+        const rows = (typeof window.__procGetRows === 'function') ? window.__procGetRows() : [];
+        const alvo = rows.find(r => String(r.processo).trim() === String(cod).trim());
+        if (!alvo) return null;
+        const chave = fazendaKeyFromRow(alvo);
+        const irmaos = rows.filter(r => fazendaKeyFromRow(r) === chave);
+        return { nome: alvo.imovel_resolvido || 'Imóvel não informado', processos: irmaos, total: totalProcessos(irmaos) };
+      } catch (e) { return null; }
+    };
+
     window.MINUTA_CAMPOS = MINUTA_CAMPOS;
     window.__procGetRows = () => allFilteredRows;
 
@@ -4646,7 +4694,19 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
     }
 
     /* Chave unica do imovel: nome normalizado + municipio + UF normalizados. */
+    /* Codigo SNCR normalizado (so digitos). Quando existe, ele e a identidade
+       oficial do imovel — evita duas "fazendas" iguais so por causa de
+       maiuscula/minuscula ou grafia diferente do nome. */
+    function sncrKey(row) {
+      const raw = String((row && row.sncr) || '').trim();
+      if (!raw || /^(null|undefined|n\/d|nao informado|não informado)$/i.test(raw)) return '';
+      const digitos = raw.replace(/\D/g, '');
+      return digitos.length >= 6 ? digitos : '';
+    }
+
     function fazendaKeyFromRow(row) {
+      const sncr = sncrKey(row);
+      if (sncr) return 'sncr:' + sncr;
       const nome = normalizeFazendaNome(row.imovel_resolvido || 'Não informado') || 'nao informado';
       const mun = normalizeLocalStr(row.municipio_resolvido || 'Não informado');
       const uf = normalizeLocalStr(row.uf_resolvida || 'N/D');
@@ -6830,9 +6890,14 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
                 </div>`;
       }).join('');
       if (!itens) return '';
+      const totalProc = totalMinuta(minuta);
+      const totalHTML = `<div class="proc-fzp-field proc-fzp-field-money proc-fzp-field-total">
+                  <span class="proc-fzp-field-label">Valor total do processo</span>
+                  <span class="proc-fzp-field-value">${formatarMoedaBR(totalProc)}</span>
+                </div>`;
       return `<div class="proc-fzp-valores">
                 <div class="proc-fzp-valores-title">Valores</div>
-                <div class="proc-fzp-fields proc-fzp-fields-valores">${itens}</div>
+                <div class="proc-fzp-fields proc-fzp-fields-valores">${itens}${totalHTML}</div>
               </div>`;
     }
     const FZP_LABELS = {
@@ -6930,6 +6995,7 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
         <div class="proc-fzp-kpi"><span class="proc-fzp-kpi-num is-pago">${g.pagos}</span><span class="proc-fzp-kpi-label">Pagos</span></div>
         <div class="proc-fzp-kpi"><span class="proc-fzp-kpi-num is-sobr">${g.sobrestados}</span><span class="proc-fzp-kpi-label">Sobrestados</span></div>
         <div class="proc-fzp-kpi"><span class="proc-fzp-kpi-num">${seis.length}</span><span class="proc-fzp-kpi-label">Com SEI</span></div>
+        <div class="proc-fzp-kpi proc-fzp-kpi-total"><span class="proc-fzp-kpi-num is-pago">${formatarMoedaBR(totalProcessos(g.processos))}</span><span class="proc-fzp-kpi-label">Valor total da fazenda</span></div>
       `;
 
       const chip = (label, val) => `<span class="proc-fzp-chip"><b>${label}</b>${val}</span>`;
@@ -7256,6 +7322,9 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
   .minuta-item span { display:block; font-size:.66rem; text-transform:uppercase; letter-spacing:.08em; color: var(--proc-text-muted); font-weight:700; }
   .minuta-item strong { display:block; margin-top:.2rem; font-size:.92rem; font-weight:700; word-break:break-word; }
   .minuta-item.is-money strong { color:#10B981; font-family:'JetBrains Mono', monospace; }
+  .minuta-item-total { border-color: rgba(16,185,129,.45); background: rgba(16,185,129,.10); }
+  .minuta-item-total strong { font-size: 1.05rem; }
+  .proc-fzp-field-total { border-color: rgba(16,185,129,.45) !important; background: rgba(16,185,129,.10) !important; }
 </style>
 <div id="minuta-overlay" role="dialog" aria-modal="true" aria-labelledby="minuta-title">
   <div class="minuta-box">
@@ -7314,7 +7383,24 @@ var k="1.1.14";function w(r,t,e){return Math.max(r,Math.min(t,e))}function _(r,t
                 <span>${label}</span>
                 <strong>${exibido.replace(/</g, '&lt;')}</strong>
               </div>`;
-    }).join('') || '<p style="color:var(--proc-text-muted);font-size:.85rem;">Processo sem valores preenchidos.</p>';
+    }).join('');
+
+    /* Totais: do processo (soma dos itens monetarios) e da fazenda inteira
+       (soma de todos os processos do mesmo imovel, identificado pelo SNCR). */
+    const fmt = window.__formatarMoedaBR || ((n) => 'R$ ' + Number(n || 0).toFixed(2));
+    const totalProc = (window.__totalMinuta ? window.__totalMinuta(minuta) : 0);
+    const grupo = (window.__procGetGroupOfProcesso ? window.__procGetGroupOfProcesso(cod) : null);
+    let totaisHTML = `<div class="minuta-item is-money minuta-item-total">
+        <span>Valor total do processo</span><strong>${fmt(totalProc)}</strong></div>`;
+    if (grupo) {
+      totaisHTML += `<div class="minuta-item is-money minuta-item-total">
+        <span>Valor total da fazenda (${grupo.processos.length} processo${grupo.processos.length === 1 ? '' : 's'})</span>
+        <strong>${fmt(grupo.total)}</strong></div>`;
+    }
+
+    const itensHTML = grid.innerHTML
+      || '<p style="color:var(--proc-text-muted);font-size:.85rem;">Processo sem valores preenchidos.</p>';
+    grid.innerHTML = itensHTML + totaisHTML;
 
     overlay.classList.add('is-open');
   }
